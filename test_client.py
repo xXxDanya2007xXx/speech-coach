@@ -12,6 +12,9 @@ from pathlib import Path
 import mimetypes
 
 
+DEFAULT_PORT = 8001  # Изменяем с 8000 на 8001
+
+
 async def test_health(api_url: str):
     """Тестирует health check эндпоинт"""
     print("🔍 Проверка health endpoint...")
@@ -143,10 +146,16 @@ async def test_invalid_file(api_url: str):
 
 async def main():
     """Основная функция тестового клиента"""
-    api_url = "http://127.0.0.1:8000"
+    # Определяем порт из аргументов или используем DEFAULT_PORT
+    port = DEFAULT_PORT
+    if len(sys.argv) > 1 and sys.argv[1].isdigit():
+        port = int(sys.argv[1])
+        sys.argv.pop(1)  # Удаляем порт из аргументов
+
+    api_url = f"http://127.0.0.1:{port}"
 
     print("=" * 60)
-    print("Speech Coach API - Тестовый клиент")
+    print(f"Speech Coach API - Тестовый клиент (порт: {port})")
     print("=" * 60)
 
     # Проверяем аргументы командной строки
@@ -168,15 +177,17 @@ async def main():
         elif command == "help":
             print("\n📖 Использование:")
             print(
-                f"  {sys.argv[0]} health              - Проверка доступности сервера")
+                f"  {sys.argv[0]} [port] health     - Проверка доступности сервера")
             print(
-                f"  {sys.argv[0]} test               - Тестирование валидации файлов")
-            print(f"  {sys.argv[0]} <путь_к_файлу>     - Анализ видеофайла")
-            print(f"  {sys.argv[0]} help               - Эта справка")
+                f"  {sys.argv[0]} [port] test      - Тестирование валидации файлов")
+            print(f"  {sys.argv[0]} [port] <файл>    - Анализ видеофайла")
+            print(f"  {sys.argv[0]} [port] help      - Эта справка")
+            print(f"\nПорт по умолчанию: {DEFAULT_PORT}")
             print("\nПримеры:")
-            print(f"  {sys.argv[0]} health")
-            print(f"  {sys.argv[0]} test")
-            print(f"  {sys.argv[0]} my_speech.mp4")
+            print(f"  {sys.argv[0]} health              # порт {DEFAULT_PORT}")
+            print(f"  {sys.argv[0]} 8000 health         # порт 8000")
+            print(f"  {sys.argv[0]} test               # тесты")
+            print(f"  {sys.argv[0]} my_speech.mp4      # анализ файла")
             return
 
         else:

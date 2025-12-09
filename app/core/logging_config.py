@@ -23,11 +23,17 @@ def setup_logging(log_level: str = "INFO", log_file: str = None):
     # Создаём обработчик для stdout
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
-    console_handler.setLevel(log_level)
+
+    # Устанавливаем уровень логирования
+    numeric_level = getattr(logging, log_level.upper(), None)
+    if not isinstance(numeric_level, int):
+        numeric_level = logging.INFO
+
+    console_handler.setLevel(numeric_level)
 
     # Получаем корневой логгер
     root_logger = logging.getLogger()
-    root_logger.setLevel(log_level)
+    root_logger.setLevel(numeric_level)
 
     # Очищаем существующие обработчики
     root_logger.handlers.clear()
@@ -42,13 +48,13 @@ def setup_logging(log_level: str = "INFO", log_file: str = None):
 
         file_handler = logging.FileHandler(log_file, encoding='utf-8')
         file_handler.setFormatter(formatter)
-        file_handler.setLevel(log_level)
+        file_handler.setLevel(numeric_level)
         root_logger.addHandler(file_handler)
 
     # Настраиваем логирование для некоторых библиотек
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
-    logging.getLogger("faster_whisper").setLevel(logging.WARNING)
+    logging.getLogger("faster_whisper").setLevel(logging.INFO)
 
     # Логируем успешную настройку
     root_logger.info(f"Logging configured with level: {log_level}")
