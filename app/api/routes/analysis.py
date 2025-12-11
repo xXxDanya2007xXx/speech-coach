@@ -63,8 +63,7 @@ async def analyze_video(
         raise HTTPException(status_code=e.status_code, detail=e.detail)
 
     except Exception as e:
-        logger.error(f"Неожиданная ошибка для {
-                     file.filename}: {e}", exc_info=True)
+        logger.error(f"Неожиданная ошибка для {file.filename}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Внутренняя ошибка сервера при обработке файла"
@@ -108,8 +107,7 @@ async def analyze_video_detailed(
 
     Идеально для создания интерактивных временных шкал и подробных отчетов.
     """
-    logger.info(f"Получен запрос на детализированный анализ файла: {
-                file.filename}")
+        logger.info(f"Получен запрос на детализированный анализ файла: {file.filename}")
 
     try:
         result = await pipeline.analyze_with_timings(file)
@@ -128,8 +126,7 @@ async def analyze_video_detailed(
         raise HTTPException(status_code=e.status_code, detail=e.detail)
 
     except Exception as e:
-        logger.error(f"Неожиданная ошибка для {
-                     file.filename}: {e}", exc_info=True)
+        logger.error(f"Неожиданная ошибка для {file.filename}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Внутренняя ошибка сервера при обработке файла: {str(e)}"

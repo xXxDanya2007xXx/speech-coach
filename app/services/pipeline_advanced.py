@@ -2,6 +2,7 @@
 Продвинутый пайплайн с поддержкой детализированных таймингов.
 """
 import logging
+import asyncio
 from typing import Optional
 from pathlib import Path
 import json
@@ -38,12 +39,48 @@ class AdvancedSpeechAnalysisPipeline(BasePipeline):
             # 2. Транскрипция с таймингами
             transcript = await self._transcribe_audio(temp_audio_path)
 
-            # 3. Продвинутый анализ с таймингами
-            result = self.advanced_analyzer.analyze_with_timings(transcript)
+            # 3. Продвинутый анализ с таймингами (CPU-bound - run in thread)
+            result = await asyncio.to_thread(self.advanced_analyzer.analyze_with_timings, transcript)
 
             # 4. GigaChat анализ (если включен)
             if self.gigachat_client:
                 result = await self._enhance_with_gigachat_advanced(result)
+
+            # Используем LLM для классификации слов-паразитов по контексту (если включено)
+            if self.gigachat_client and settings.llm_fillers_enabled and result.timeline.fillers:
+                try:
+                    contexts = []
+                    for filler in result.timeline.fillers:
+                        # find index of word timing closest to filler.timestamp
+                        nearest_idx = None
+                        min_diff = float('inf')
+                        for i, wt in enumerate(transcript.word_timings):
+                            diff = abs(wt.start - filler.timestamp)
+                            if diff < min_diff:
+                                min_diff = diff
+                                nearest_idx = i
+                        before_words = []
+                        after_words = []
+                        if nearest_idx is not None:
+                            for j in range(max(0, nearest_idx - 2), nearest_idx):
+                                before_words.append(transcript.word_timings[j].word)
+                            for j in range(nearest_idx + 1, min(len(transcript.word_timings), nearest_idx + 3)):
+                                after_words.append(transcript.word_timings[j].word)
+                        contexts.append({
+                            "word": filler.word,
+                            "exact_word": filler.exact_word,
+                            "timestamp": filler.timestamp,
+                            "context_before": " ".join(before_words),
+                            "context_after": " ".join(after_words)
+                        })
+                    classified = await self.gigachat_client.classify_fillers_context(contexts, cache=self.cache)
+                    if classified:
+                        for idx, cl in enumerate(classified):
+                            if idx < len(result.timeline.fillers):
+                                result.timeline.fillers[idx].is_context_filler = cl.get('is_filler', False)
+                                result.timeline.fillers[idx].context_score = cl.get('score')
+                except Exception as e:
+                    logger.warning(f"LLM filler classification (advanced) failed: {e}")
 
             return result
 
@@ -200,8 +237,7 @@ class AdvancedSpeechAnalysisPipeline(BasePipeline):
         for question in result.timeline.questions[:5]:
             q_type = "риторический" if question.is_rhetorical else "обычный"
             question_summary.append(
-                f"- {question.timestamp:.1f}с: '{
-                    question.text[:50]}...' ({q_type})"
+                f"- {question.timestamp:.1f}с: '{question.text[:50]}...' ({q_type})"
             )
 
         # Акценты

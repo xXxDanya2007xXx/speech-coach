@@ -1,6 +1,6 @@
 from typing import Optional, List
 from pydantic_settings import BaseSettings
-from pydantic import Field, SecretStr, validator
+from pydantic import Field, SecretStr, field_validator
 import json
 
 
@@ -77,12 +77,32 @@ class Settings(BaseSettings):
     temp_file_retention_minutes: int = Field(
         default=30, alias="TEMP_FILE_RETENTION_MINUTES")
 
+    # Настройки детекции пауз и слов-паразитов
+    min_pause_gap_sec: float = Field(default=0.5, alias="MIN_PAUSE_GAP_SEC")
+    long_pause_sec: float = Field(default=2.5, alias="LONG_PAUSE_SEC")
+    silence_factor: float = Field(default=0.35, alias="SILENCE_FACTOR")
+    pause_segment_time_tolerance: float = Field(default=0.25, alias="PAUSE_SEGMENT_TIME_TOLERANCE")
+
+    # VAD настройки
+    use_webrtc_vad: bool = Field(default=True, alias="USE_WEBRTC_VAD")
+    webrtc_vad_mode: int = Field(default=3, alias="WEBRTC_VAD_MODE")
+    use_pyannote_vad: bool = Field(default=False, alias="USE_PYANNOTE_VAD")
+    pyannote_model: str = Field(default="pyannote/voice-activity-detection", alias="PYANNOTE_MODEL")
+
+    # Filler detection settings
+    filler_cluster_gap_sec: float = Field(default=2.0, alias="FILLER_CLUSTER_GAP_SEC")
+
+    # LLM settings for contextual filler detection
+    llm_fillers_enabled: bool = Field(default=True, alias="LLM_FILLERS_ENABLED")
+    llm_fillers_max_tokens: int = Field(default=256, alias="LLM_FILLERS_MAX_TOKENS")
+    llm_fillers_model: str = Field(default="GigaChat", alias="LLM_FILLERS_MODEL")
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
 
-    @validator("max_file_size_mb")
+    @field_validator("max_file_size_mb")
     def validate_max_file_size(cls, v):
         if v <= 0:
             raise ValueError("MAX_FILE_SIZE_MB must be positive")
@@ -90,7 +110,7 @@ class Settings(BaseSettings):
             raise ValueError("MAX_FILE_SIZE_MB cannot exceed 1024 (1GB)")
         return v
 
-    @validator("allowed_video_extensions", pre=True)
+    @field_validator("allowed_video_extensions", mode="before")
     def parse_allowed_extensions(cls, v):
         """Парсит значение в список расширений"""
         if v is None:
@@ -121,7 +141,7 @@ class Settings(BaseSettings):
 
         return v
 
-    @validator("log_max_size_mb")
+    @field_validator("log_max_size_mb")
     def validate_log_max_size(cls, v):
         if v <= 0:
             raise ValueError("LOG_MAX_SIZE_MB must be positive")
@@ -129,7 +149,7 @@ class Settings(BaseSettings):
             raise ValueError("LOG_MAX_SIZE_MB cannot exceed 100")
         return v
 
-    @validator("log_backup_count")
+    @field_validator("log_backup_count")
     def validate_log_backup_count(cls, v):
         if v < 0:
             raise ValueError("LOG_BACKUP_COUNT cannot be negative")
@@ -137,7 +157,7 @@ class Settings(BaseSettings):
             raise ValueError("LOG_BACKUP_COUNT cannot exceed 20")
         return v
 
-    @validator("max_concurrent_analyses")
+    @field_validator("max_concurrent_analyses")
     def validate_max_concurrent_analyses(cls, v):
         if v <= 0:
             raise ValueError("MAX_CONCURRENT_ANALYSES must be positive")

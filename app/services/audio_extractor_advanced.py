@@ -28,8 +28,7 @@ class AdvancedFfmpegAudioExtractor:
         """
         Извлекает аудио с обработкой таймаутов и лучшим управлением процессом.
         """
-        logger.info(f"Extracting audio from {
-                    video_path.name} (timeout: {timeout}s)")
+        logger.info(f"Extracting audio from {video_path.name} (timeout: {timeout}s)")
 
         # Убедимся, что видеофайл существует
         if not video_path.exists():
@@ -105,11 +104,9 @@ class AdvancedFfmpegAudioExtractor:
                     if return_code == 1:
                         error_msg = f"General FFmpeg error: {error_msg}"
                     elif return_code == 183:
-                        error_msg = f"File already exists or permission denied: {
-                            error_msg}"
+                            error_msg = f"File already exists or permission denied: {error_msg}"
                     elif return_code == 127:
-                        error_msg = f"FFmpeg command not found: {
-                            self.ffmpeg_path}"
+                        error_msg = f"FFmpeg command not found: {self.ffmpeg_path}"
 
                     raise RuntimeError(f"FFmpeg failed: {error_msg}")
 
@@ -150,8 +147,7 @@ class AdvancedFfmpegAudioExtractor:
         if file_size == 0:
             raise RuntimeError(f"Extracted audio file is empty: {audio_path}")
 
-        logger.info(f"Audio extracted: {
-                    audio_path.name} ({file_size:,} bytes)")
+        logger.info(f"Audio extracted: {audio_path.name} ({file_size:,} bytes)")
 
     def __del__(self):
         """Деструктор - гарантируем завершение процесса"""

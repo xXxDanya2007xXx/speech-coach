@@ -19,6 +19,7 @@ from app.services.analyzer import (
     MIN_PAUSE_GAP_SEC, LONG_PAUSE_SEC, SPEECH_RATE_WINDOW_SIZE,
     SPEECH_RATE_WINDOW_STEP
 )
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -732,7 +733,7 @@ class AdvancedSpeechAnalyzer:
                 last_filler = current_cluster[-1]
                 time_gap = filler.timestamp - last_filler.timestamp
 
-                if time_gap < 5.0:  # Слова-паразиты в пределах 5 секунд
+                if time_gap < settings.filler_cluster_gap_sec:  # Слова-паразиты в пределах настроенного окна кластеризации
                     current_cluster.append(filler)
                 else:
                     if len(current_cluster) >= 2:  # Кластер минимум из 2 слов
@@ -751,7 +752,12 @@ class AdvancedSpeechAnalyzer:
         context_before = cluster[0].context_window if cluster else ""
         context_after = cluster[-1].context_window if cluster else ""
 
-        severity = "high" if len(cluster) > 3 else "medium"
+        if len(cluster) >= 5:
+            severity = "critical"
+        elif len(cluster) > 3:
+            severity = "high"
+        else:
+            severity = "medium"
 
         return SuspiciousMoment(
             id=moment_id,
@@ -760,8 +766,7 @@ class AdvancedSpeechAnalyzer:
             severity=severity,
             duration=cluster[-1].timestamp -
             cluster[0].timestamp if len(cluster) > 1 else 0,
-            description=f"Скопление {
-                len(cluster)} слов-паразитов: {', '.join(words)}",
+            description=f"Скопление {len(cluster)} слов-паразитов: {', '.join(words)}",
             suggestion="Сделайте паузу и глубокий вдох. Говорите медленнее и осознаннее.",
             context_before=context_before,
             context_after=context_after,
@@ -798,8 +803,7 @@ class AdvancedSpeechAnalyzer:
             type="fast_speech",
             severity="medium",
             duration=phrase.duration,
-            description=f"Очень быстрый темп: {
-                phrase.words_per_minute:.0f} слов в минуту",
+            description=f"Очень быстрый темп: {phrase.words_per_minute:.0f} слов в минуту",
             suggestion="Замедлите речь. Делайте паузы между фразами.",
             context_before=phrase.text[:50],
             context_after="",
@@ -817,8 +821,7 @@ class AdvancedSpeechAnalyzer:
             type="slow_speech",
             severity="low",
             duration=phrase.duration,
-            description=f"Очень медленный темп: {
-                phrase.words_per_minute:.0f} слов в минуту",
+            description=f"Очень медленный темп: {phrase.words_per_minute:.0f} слов в минуту",
             suggestion="Ускорьте немного темп. Аудитория может потерять интерес.",
             context_before=phrase.text[:50],
             context_after="",

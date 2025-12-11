@@ -115,8 +115,15 @@ class MetricsCollector:
             error_message=error_message
         )
 
-        # Сохраняем метрики
-        self._save_metrics(metrics)
+        # Сохраняем метрики асинхронно, если есть loop, иначе синхронно
+        try:
+            import asyncio
+            loop = asyncio.get_running_loop()
+            # Запуск записи в отдельном потоке
+            loop.create_task(asyncio.to_thread(self._save_metrics, metrics))
+        except RuntimeError:
+            # Нет запущенного цикла - записываем синхронно
+            self._save_metrics(metrics)
         logger.info(f"Метрики обработки сохранены: {
                     processing_time:.2f} секунд")
 

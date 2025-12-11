@@ -1,4 +1,6 @@
 from typing import List, Dict, Tuple, Any, Literal, Optional
+from app.core.config import settings
+from app.services import vad
 import re
 import wave
 import struct
@@ -7,6 +9,12 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from app.models.transcript import Transcript, TranscriptSegment, WordTiming
+from app.models.timed_analysis import (
+    TimedFillerWord,
+    TimedPause,
+    SpeechRateWindow,
+    TimedAnalysisData,
+)
 from app.models.analysis import (
     AnalysisResult, FillerWordsStats, PausesStats,
     PhraseStats, AdviceItem
@@ -16,12 +24,12 @@ from app.models.analysis import (
 # Константы "нормы"
 # --------------------
 
-MIN_PAUSE_GAP_SEC = 0.5
+MIN_PAUSE_GAP_SEC = settings.min_pause_gap_sec
 MIN_COMFORT_WPM = 100.0
 MAX_COMFORT_WPM = 180.0
-LONG_PAUSE_SEC = 2.5
-SILENCE_FACTOR = 0.35
-PAUSE_SEGMENT_TIME_TOLERANCE = 0.25
+LONG_PAUSE_SEC = settings.long_pause_sec
+SILENCE_FACTOR = settings.silence_factor
+PAUSE_SEGMENT_TIME_TOLERANCE = settings.pause_segment_time_tolerance
 SPEECH_RATE_WINDOW_SIZE = 30.0  # секунд
 SPEECH_RATE_WINDOW_STEP = 15.0  # секунд
 
@@ -32,6 +40,8 @@ SPEECH_RATE_WINDOW_STEP = 15.0  # секунд
 FILLER_DEFINITIONS: List[Tuple[str, str]] = [
     # Русские звучания
     ("э-э", r"\bэ+([- ]э+)*\b"),
+    ("эм", r"\bэм+\b"),
+    ("мм", r"\bмм+\b"),
     ("ну", r"\bну\b"),
     ("вот", r"\bвот\b"),
     ("там", r"\bтам\b"),
@@ -65,46 +75,6 @@ COMPILED_FILLERS: List[Tuple[str, re.Pattern]] = [
     (name, re.compile(pattern, flags=re.IGNORECASE | re.MULTILINE))
     for name, pattern in FILLER_DEFINITIONS
 ]
-
-
-# --------------------
-# Модели для таймингов
-# --------------------
-
-class TimedFillerWord(BaseModel):
-    """Слово-паразит с временной меткой"""
-    word: str
-    timestamp: float
-    exact_word: str
-    confidence: Optional[float] = None
-
-
-class TimedPause(BaseModel):
-    """Пауза с контекстом"""
-    start: float
-    end: float
-    duration: float
-    type: Literal["natural", "long", "awkward", "dramatic"]
-    before_word: Optional[str] = None
-    after_word: Optional[str] = None
-
-
-class SpeechRateWindow(BaseModel):
-    """Темп речи в временном окне"""
-    window_start: float
-    window_end: float
-    word_count: int
-    words_per_minute: float
-    speaking_time: float
-
-
-class TimedAnalysisData(BaseModel):
-    """Дополнительные данные с таймингами"""
-    filler_words_detailed: List[TimedFillerWord] = []
-    pauses_detailed: List[TimedPause] = []
-    speech_rate_windows: List[SpeechRateWindow] = []
-    word_timings_count: int = 0
-    speaking_activity: List[Dict[str, float]] = []
 
 
 class EnhancedAnalysisResult(BaseModel):
@@ -143,7 +113,7 @@ class SpeechAnalyzer:
         timed_data = TimedAnalysisData()
 
         if include_timings and transcript.word_timings:
-            timed_data = self._analyze_with_timings(transcript)
+            timed_data = self._analyze_with_timings(transcript, audio_path)
 
         return EnhancedAnalysisResult(
             **base_result.dict(),
@@ -213,7 +183,7 @@ class SpeechAnalyzer:
             gigachat_analysis=None,
         )
 
-    def _analyze_with_timings(self, transcript: Transcript) -> TimedAnalysisData:
+    def _analyze_with_timings(self, transcript: Transcript, audio_path: Path | None = None) -> TimedAnalysisData:
         """Анализ с использованием таймингов слов"""
         if not transcript.word_timings:
             return TimedAnalysisData()
@@ -221,7 +191,7 @@ class SpeechAnalyzer:
         return TimedAnalysisData(
             filler_words_detailed=self._find_fillers_with_exact_timings(
                 transcript),
-            pauses_detailed=self._analyze_pauses_with_word_timings(transcript),
+            pauses_detailed=self._analyze_pauses_with_word_timings(transcript, audio_path),
             speech_rate_windows=self._calculate_speech_windows_by_words(
                 transcript),
             word_timings_count=len(transcript.word_timings),
@@ -233,26 +203,31 @@ class SpeechAnalyzer:
         fillers = []
         for word_timing in transcript.word_timings:
             word_text = word_timing.word.lower().strip().strip(",.!?;:()\"'")
+            # Нормализуем повторяющиеся символы (например, 'ээээ' -> 'ээ')
+            word_text_norm = re.sub(r"(.)\1{2,}", r"\1\1", word_text)
+            word_text_norm = word_text_norm.replace("-", " ")
 
             for filler_name, pattern in COMPILED_FILLERS:
-                # Используем search вместо match, так как match проверяет начало строки
-                if pattern.search(word_text):
+                # Используем search на нормализованной версии
+                if pattern.search(word_text) or pattern.search(word_text_norm) or (filler_name in word_text_norm):
                     fillers.append(TimedFillerWord(
                         word=filler_name,
-                        timestamp=round(word_timing.start, 2),
+                        timestamp=round(word_timing.start, 3),
                         exact_word=word_timing.word,
-                        confidence=word_timing.confidence
+                        confidence=word_timing.confidence,
+                        duration=round(max(0.0, word_timing.end - word_timing.start), 3)
                     ))
                     break
 
         return fillers
 
-    def _analyze_pauses_with_word_timings(self, transcript: Transcript) -> List[TimedPause]:
+    def _analyze_pauses_with_word_timings(self, transcript: Transcript, audio_path: Path | None = None) -> List[TimedPause]:
         """Анализирует паузы между словами"""
+        # Note: audio_path optional will be applied in filtering stage
         if len(transcript.word_timings) < 2:
             return []
 
-        pauses = []
+        raw_pauses = []
         for i in range(len(transcript.word_timings) - 1):
             current_word = transcript.word_timings[i]
             next_word = transcript.word_timings[i + 1]
@@ -261,15 +236,31 @@ class SpeechAnalyzer:
 
             if pause_duration >= MIN_PAUSE_GAP_SEC:
                 pause_type = self._classify_pause(pause_duration)
+                raw_pauses.append({
+                    "start": round(current_word.end, 3),
+                    "end": round(next_word.start, 3),
+                    "duration": round(pause_duration, 3),
+                    "type": pause_type,
+                    "before_word": current_word.word,
+                    "after_word": next_word.word
+                })
 
-                pauses.append(TimedPause(
-                    start=round(current_word.end, 2),
-                    end=round(next_word.start, 2),
-                    duration=round(pause_duration, 2),
-                    type=pause_type,
-                    before_word=current_word.word,
-                    after_word=next_word.word
-                ))
+        # Apply audio-based filtering to discard false pauses caused by mis-segmentation
+        filtered_raw = raw_pauses
+        if audio_path is not None and raw_pauses:
+            try:
+                filtered_raw = self._filter_noisy_pauses(audio_path, raw_pauses, transcript.segments)
+            except Exception:
+                filtered_raw = raw_pauses
+
+        pauses = [TimedPause(
+            start=p["start"],
+            end=p["end"],
+            duration=p["duration"],
+            type=p.get("type", self._classify_pause(p["duration"])),
+            before_word=p.get("before_word"),
+            after_word=p.get("after_word")
+        ) for p in filtered_raw]
 
         return pauses
 
@@ -464,11 +455,15 @@ class SpeechAnalyzer:
         counts: Dict[str, int] = {}
         total = 0
 
+        # Нормализуем текст: уменьшение повторений символов и приведение к нижнему регистру
+        normalized_text = re.sub(r"(.)\1{2,}", r"\1\1", text.lower())
+        normalized_text = normalized_text.replace('-', ' ')
+
         # Используем finditer вместо findall чтобы правильно считать совпадения
         found_positions = set()
 
         for name, pattern in COMPILED_FILLERS:
-            for match in pattern.finditer(text):
+            for match in pattern.finditer(normalized_text):
                 start, end = match.span()
                 # Проверяем, не пересекается ли это совпадение с другими
                 if not any(start < pos <= end or pos >= start and pos < end 
@@ -486,20 +481,43 @@ class SpeechAnalyzer:
         segments: List[TranscriptSegment],
     ) -> List[Dict[str, float]]:
         """Фильтрует шумные паузы"""
+        wav_read_failed = False
+        framerate = None
+        frames = b''
         try:
             with wave.open(str(audio_path), "rb") as wf:
                 n_channels, sampwidth, framerate, n_frames, *_ = wf.getparams()
 
                 if n_channels != 1 or sampwidth != 2:
-                    return pauses
-
-                frames = wf.readframes(n_frames)
+                    wav_read_failed = True
+                else:
+                    frames = wf.readframes(n_frames)
         except Exception:
-            return pauses
+            wav_read_failed = True
 
-        num_samples = len(frames) // 2
-        if num_samples == 0:
-            return pauses
+        num_samples = len(frames) // 2 if frames else 0
+        # Try early VAD detection — if we failed to read WAV, use VAD results to filter pauses immediately.
+        try:
+            early_vad_segments = vad.detect_speech_regions(audio_path, settings.use_pyannote_vad, settings.use_webrtc_vad, webrtc_mode=settings.webrtc_vad_mode, pyannote_model=settings.pyannote_model)
+        except Exception:
+            early_vad_segments = []
+
+        if wav_read_failed and early_vad_segments:
+            def has_vad_activity_early(start_s: float, end_s: float) -> bool:
+                for vstart, vend in early_vad_segments:
+                    if not (vend <= start_s or vstart >= end_s):
+                        return True
+                return False
+
+            filtered = []
+            for pause in pauses:
+                start_s = pause["start"]
+                end_s = pause["end"]
+                if end_s <= start_s:
+                    continue
+                if not has_vad_activity_early(start_s, end_s):
+                    filtered.append(pause)
+            return filtered
 
         samples = struct.unpack("<{}h".format(num_samples), frames)
 
@@ -528,7 +546,40 @@ class SpeechAnalyzer:
             if r > 0:
                 speech_rms_values.append(r)
 
+        # Если не получилось вычислить RMS на основе сегментов (например, сегменты тихие),
+        # делаем запасной подсчёт медианы RMS по всему файлу в скользящих окнах.
         if not speech_rms_values:
+            window_size = int(0.1 * framerate) if framerate else 0
+            if window_size > 0:
+                for i in range(0, num_samples, window_size):
+                    r = segment_rms(i, min(num_samples, i + window_size))
+                    if r > 0:
+                        speech_rms_values.append(r)
+
+        # Если после всех попыток RMS не получился, попробуем фильтровать паузы только по VAD (если он доступен).
+        if not speech_rms_values:
+            try:
+                vad_segments = vad.detect_speech_regions(audio_path, settings.use_pyannote_vad, settings.use_webrtc_vad, webrtc_mode=settings.webrtc_vad_mode, pyannote_model=settings.pyannote_model)
+            except Exception:
+                vad_segments = []
+
+            def has_vad_activity_local(start_s: float, end_s: float) -> bool:
+                for vstart, vend in vad_segments:
+                    if not (vend <= start_s or vstart >= end_s):
+                        return True
+                return False
+
+            if vad_segments:
+                filtered = []
+                for pause in pauses:
+                    start_s = pause["start"]
+                    end_s = pause["end"]
+                    if end_s <= start_s:
+                        continue
+                    if not has_vad_activity_local(start_s, end_s):
+                        filtered.append(pause)
+                return filtered
+
             return pauses
 
         # Медиана громкости речи
@@ -536,7 +587,33 @@ class SpeechAnalyzer:
         median_speech_rms = speech_rms_values[len(speech_rms_values) // 2]
         silence_threshold = median_speech_rms * SILENCE_FACTOR
 
-        # Фильтрация пауз
+        # Пытаемся использовать VAD (pyannote / webrtcvad) для исключения ложных пауз
+        try:
+            vad_segments = vad.detect_speech_regions(audio_path, settings.use_pyannote_vad, settings.use_webrtc_vad, webrtc_mode=settings.webrtc_vad_mode, pyannote_model=settings.pyannote_model)
+        except Exception as e:
+            vad_segments = []
+
+        def has_vad_activity(start_s: float, end_s: float) -> bool:
+            for vstart, vend in vad_segments:
+                # If VAD speech overlaps with the pause
+                if not (vend <= start_s or vstart >= end_s):
+                    # Overlap exists
+                    return True
+            return False
+
+        # Если не удалось прочитать форму (wav) — пробуем фильтровать только по VAD (если доступен)
+        if wav_read_failed and vad_segments:
+            filtered = []
+            for pause in pauses:
+                start_s = pause["start"]
+                end_s = pause["end"]
+                if end_s <= start_s:
+                    continue
+                if not has_vad_activity(start_s, end_s):
+                    filtered.append(pause)
+            return filtered
+
+        # Фильтрация пауз по RMS и VAD
         filtered = []
         for pause in pauses:
             start_s = pause["start"]
@@ -549,6 +626,10 @@ class SpeechAnalyzer:
             end_idx = min(num_samples, int(end_s * framerate))
 
             if end_idx <= start_idx:
+                continue
+
+            # If VAD was available and detects speech in this gap, skip it
+            if vad_segments and has_vad_activity(start_s, end_s):
                 continue
 
             r = segment_rms(start_idx, end_idx)

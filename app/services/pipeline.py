@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Optional
 import logging
 import time
+import asyncio
+import aiofiles
 
 from fastapi import UploadFile
 
@@ -43,6 +45,10 @@ class SpeechAnalysisPipeline:
         self.gigachat_client = gigachat_client
         self.include_timings = include_timings
 
+        # Ограничение параллельных анализов
+        self._semaphore: asyncio.Semaphore = asyncio.Semaphore(
+            settings.max_concurrent_analyses)
+
         # Инициализация кеша
         self.cache = None
         if enable_cache:
@@ -61,11 +67,13 @@ class SpeechAnalysisPipeline:
         """
         Анализирует загруженное видео с поддержкой таймингов.
         """
-        # Начинаем сбор метрик
-        if self.metrics_collector:
-            await self._start_metrics_collection(file)
-
+        # Ограничиваем параллельность: берём семафор
+        await self._semaphore.acquire()
         try:
+            # Начинаем сбор метрик
+            if self.metrics_collector:
+                await self._start_metrics_collection(file)
+
             # Валидация файла
             await self._validate_file(file)
 
@@ -113,19 +121,22 @@ class SpeechAnalysisPipeline:
 
                 logger.info(f"Анализ завершен успешно: {file.filename}")
                 return result
-
             finally:
                 # Очистка временных файлов
                 self._cleanup_temp_files(temp_video_path, temp_audio_path)
-
         except Exception as e:
             # Завершаем сбор метрик с ошибкой
             if self.metrics_collector:
                 self.metrics_collector.end_processing(
                     success=False, error_message=str(e))
-
             # Пробрасываем исключение дальше
             raise
+        finally:
+            # Релизуем семафор в любом случае
+            try:
+                self._semaphore.release()
+            except Exception:
+                pass
 
     async def _start_metrics_collection(self, file: UploadFile):
         """Начинает сбор метрик"""
@@ -194,8 +205,7 @@ class SpeechAnalysisPipeline:
                     max_size_mb=settings.max_file_size_mb
                 )
 
-            logger.info(f"Файл валиден: {file.filename}, размер: {
-                        file_size / (1024 * 1024):.2f} MB")
+            logger.info(f"Файл валиден: {file.filename}, размер: {file_size / (1024 * 1024):.2f} MB")
 
         except Exception as e:
             logger.error(f"Ошибка проверки размера файла: {e}")
@@ -223,7 +233,8 @@ class SpeechAnalysisPipeline:
         logger.info(f"Извлечение аудио из {video_path.name}")
 
         try:
-            self.audio_extractor.extract(video_path, audio_path, timeout=300)
+            # Extract audio in thread pool to avoid blocking event loop
+            await asyncio.to_thread(self.audio_extractor.extract, video_path, audio_path, 300)
 
             # Дополнительная валидация аудиофайла
             if audio_path.exists():
@@ -252,14 +263,14 @@ class SpeechAnalysisPipeline:
             if not is_valid:
                 logger.warning(f"Аудиофайл не прошел валидацию: {error_msg}")
 
-            transcript = self.transcriber.transcribe(audio_path)
+            # Run transcription in thread pool (faster-whisper is blocking)
+            transcript = await asyncio.to_thread(self.transcriber.transcribe, audio_path)
 
             if not transcript.segments or not transcript.text.strip():
                 logger.warning("Транскрипт пуст или содержит только пробелы")
 
             if transcript.word_timings:
-                logger.info(f"Транскрибация завершена: {len(transcript.segments)} сегментов, {
-                            len(transcript.word_timings)} таймингов слов")
+                logger.info(f"Транскрибация завершена: {len(transcript.segments)} сегментов, {len(transcript.word_timings)} таймингов слов")
             else:
                 logger.warning("Транскрибация не вернула тайминги слов")
 
@@ -275,10 +286,12 @@ class SpeechAnalysisPipeline:
         logger.info("Анализ метрик речи с таймингами...")
 
         try:
-            result = self.analyzer.analyze(
+            # Run analyzer in thread pool (CPU-bound operations)
+            result = await asyncio.to_thread(
+                self.analyzer.analyze,
                 transcript,
-                audio_path=audio_path,
-                include_timings=self.include_timings
+                audio_path,
+                self.include_timings
             )
 
             # Дополнительная проверка результата
@@ -289,8 +302,51 @@ class SpeechAnalysisPipeline:
                 logger.info(f"Анализ с таймингами: {result.timed_data.word_timings_count} слов, {len(
                     result.timed_data.filler_words_detailed)} слов-паразитов, {len(result.timed_data.pauses_detailed)} пауз")
 
-            logger.info(f"Анализ завершен: {result.words_total} слов, темп: {
-                        result.words_per_minute:.1f} WPM")
+            logger.info(f"Анализ завершен: {result.words_total} слов, темп: {result.words_per_minute:.1f} WPM")
+
+            # Optionally use LLM to classify filler words in context
+            if self.gigachat_client and settings.llm_fillers_enabled and result.timed_data.filler_words_detailed:
+                try:
+                    contexts = []
+                    # Build context windows around each filler
+                    for filler in result.timed_data.filler_words_detailed:
+                        # Find index of nearest word timing in the transcript
+                        ft = filler.timestamp
+                        nearest_idx = None
+                        min_diff = float('inf')
+                        for i, wt in enumerate(transcript.word_timings):
+                            diff = abs(wt.start - ft)
+                            if diff < min_diff:
+                                min_diff = diff
+                                nearest_idx = i
+                        # context: two words before and two after
+                        before_words = []
+                        after_words = []
+                        if nearest_idx is not None:
+                            for j in range(max(0, nearest_idx - 2), nearest_idx):
+                                before_words.append(transcript.word_timings[j].word)
+                            for j in range(nearest_idx + 1, min(len(transcript.word_timings), nearest_idx + 3)):
+                                after_words.append(transcript.word_timings[j].word)
+
+                        contexts.append({
+                            "word": filler.word,
+                            "exact_word": filler.exact_word,
+                            "timestamp": filler.timestamp,
+                            "context_before": " ".join(before_words),
+                            "context_after": " ".join(after_words)
+                        })
+
+                    classified = await self.gigachat_client.classify_fillers_context(contexts, cache=self.cache)
+                    if classified:
+                        # Apply classification results
+                        for idx, cl in enumerate(classified):
+                            if idx < len(result.timed_data.filler_words_detailed):
+                                fw = result.timed_data.filler_words_detailed[idx]
+                                fw.context_score = cl.get("score")
+                                fw.is_context_filler = cl.get("is_filler", False)
+
+                except Exception as e:
+                    logger.warning(f"LLM filler classification failed: {e}")
             return result
 
         except Exception as e:
@@ -320,8 +376,7 @@ class SpeechAnalysisPipeline:
             gigachat_analysis = await self.gigachat_client.analyze_speech(base_result)
 
             if gigachat_analysis:
-                logger.info(f"GigaChat анализ получен: {
-                            gigachat_analysis.overall_assessment[:100]}...")
+                logger.info(f"GigaChat анализ получен: {gigachat_analysis.overall_assessment[:100]}...")
 
                 # Обновляем результат с анализом GigaChat
                 result.gigachat_analysis = gigachat_analysis
@@ -338,15 +393,14 @@ class SpeechAnalysisPipeline:
     async def _save_upload_to_path(upload: UploadFile, dst: Path) -> None:
         """Сохраняет загруженный файл"""
         await upload.seek(0)
-
-        with dst.open("wb") as out_file:
-            chunk_size = 1024 * 1024  # 1 MB
+        # Используем aiofiles для асинхронной записи на диск
+        chunk_size = 1024 * 1024  # 1 MB
+        async with aiofiles.open(str(dst), "wb") as out_file:
             while True:
                 chunk = await upload.read(chunk_size)
                 if not chunk:
                     break
-                out_file.write(chunk)
-
+                await out_file.write(chunk)
         logger.info(f"Файл сохранен: {dst}")
 
     @staticmethod

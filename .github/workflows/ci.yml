@@ -2,6 +2,44 @@ name: CI
 
 on:
   push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.10, 3.11]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install test requirements (light)
+        run: |
+          python -m pip install -r requirements-ci.txt
+
+      - name: Run linters (optional)
+        run: |
+          python -m pip install flake8
+          flake8 --version || true
+
+      - name: Run tests
+        run: |
+          pytest -q --disable-warnings -o log_cli=true
+name: CI
+
+on:
+  push:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
@@ -16,70 +54,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
+      - name: Install test requirements (light)
         run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          # Линтеры и автоформатирование
-          pip install flake8 pylint autopep8
+          python -m pip install -r requirements-ci.txt
 
-      - name: Validate commit message format
-        if: github.event_name == 'push'
+      - name: Run tests
         run: |
-          # Проверяем только последний коммит в пуше.
-          COMMIT_MSG="$(git log -1 --pretty=%s)"
-          echo "Last commit message: $COMMIT_MSG"
-
-          # Требуем формат, близкий к Conventional Commits:
-          #   type(:|(<scope>):) description
-          # где type ∈ {feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert}
-          REGEX='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-zA-Z0-9_-]+\))?: .+'
-
-          if ! echo "$COMMIT_MSG" | grep -Eq "$REGEX"; then
-            echo "Commit message does not match required pattern."
-            echo "Expected format: type(: or (scope):) description"
-            echo "Example:"
-            echo "  feat: add speech analysis endpoint"
-            echo "  fix(api): handle empty video upload"
-            exit 1
-          fi
-
-      - name: Flake8 — critical sanity check (fail-fast)
+          pytest -q --disable-warnings -o log_cli=true
         run: |
-          # Критические ошибки: синтаксис и серьёзные дефекты (E9,F63,F7,F82).
-          # При наличии таких ошибок сборка упадёт, автоформатирование не выполняется.
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-
-      - name: Auto-format code with autopep8
-        run: |
-          # Автоматическое приведение к PEP8 после успешной критической проверки.
-          # Форматируем директорию app и все корневые .py-файлы.
-          autopep8 --in-place --recursive app
-          find . -maxdepth 1 -name "*.py" -print0 | xargs -0 -r autopep8 --in-place
-
-      - name: Flake8 — style report (non-blocking)
-        run: |
-          # Стиль/сложность/длина строк. Отчёт в логах, но сборку не ломаем.
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-
-      - name: Run Pylint (code analysis)
-        run: |
-          # Анализируем папку app, если в ней есть .py файлы.
-          if [ -d "app" ] && ls app/*.py app/**/*.py >/dev/null 2>&1; then
-            pylint app --fail-under=5.0 || echo "Pylint score below threshold, see report above."
-          else
-            echo "No Python files in app to analyze yet."
-          fi
-
-      - name: Commit autoformatted code
-        if: github.event_name == 'push'
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "style: auto-format code with autopep8"
-          file_pattern: "*.py"

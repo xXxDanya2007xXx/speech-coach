@@ -54,6 +54,9 @@ class FillerWordDetail(BaseModel):
         "low", description="Серьезность проблемы")
     suggestions: List[str] = Field(
         default_factory=list, description="Рекомендации по исправлению")
+    # LLM contextual classification
+    is_context_filler: Optional[bool] = Field(None, description="Определено ли слово как паразит в контексте LLM")
+    context_score: Optional[float] = Field(None, description="Оценка уверенности LLM (0-1)")
 
 
 class PauseDetail(BaseModel):

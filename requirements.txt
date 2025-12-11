@@ -28,6 +28,7 @@ aiohttp
 # Валидация файлов
 python-magic
 psutil
+aiofiles
 
 # Кеширование
 cachetools
@@ -56,3 +57,7 @@ pytest-cov
 tqdm
 click
 pyyaml
+webrtcvad
+# pyannote.audio requires torch and heavier dependencies; optional for improved VAD
+pyannote.audio
+torch

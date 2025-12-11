@@ -81,5 +81,4 @@ def setup_logging(
     # Логируем успешную настройку
     root_logger.info(f"Logging configured with level: {log_level}")
     if log_file:
-        root_logger.info(f"Logs will be written to: {
-                         log_file} (max {max_file_size//1024//1024}MB)")
+        root_logger.info(f"Logs will be written to: {log_file} (max {max_file_size//1024//1024}MB)")

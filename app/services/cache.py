@@ -83,6 +83,31 @@ class AnalysisCache:
         logger.info(f"Удалено {deleted} старых записей кеша")
         return deleted
 
+    # --- Новые методы для работы по ключу (чтобы не держать весь файл в памяти) ---
+    def get_by_key(self, key: str) -> Optional[Any]:
+        cache_file = self._get_cache_path(key)
+        if not cache_file.exists():
+            return None
+        try:
+            mtime = cache_file.stat().st_mtime
+            if time.time() - mtime > self.ttl_seconds:
+                cache_file.unlink()
+                return None
+            with open(cache_file, 'rb') as f:
+                return pickle.load(f)
+        except Exception as e:
+            logger.warning(f"Ошибка чтения кеша: {e}")
+            return None
+
+    def set_by_key(self, key: str, result: Any) -> None:
+        cache_file = self._get_cache_path(key)
+        try:
+            with open(cache_file, 'wb') as f:
+                pickle.dump(result, f, protocol=pickle.HIGHEST_PROTOCOL)
+            logger.debug(f"Кеш set: {key}")
+        except Exception as e:
+            logger.warning(f"Ошибка записи в кеш: {e}")
+
 
 def cache_analysis(ttl_hours: int = 1):
     """Декоратор для кеширования результатов анализа"""
@@ -93,15 +118,28 @@ def cache_analysis(ttl_hours: int = 1):
             if not getattr(self, 'cache', None):
                 return await func(self, file, *args, **kwargs)
 
-            # Читаем содержимое файла для создания ключа
-            file_data = await file.read()
-            await file.seek(0)  # Возвращаем указатель
+            # Читаем файл по частям и считаем sha256 для ключа кеша
+            import hashlib
+            sha = hashlib.sha256()
+            try:
+                await file.seek(0)
+            except Exception:
+                pass
+            chunk_size = 1024 * 1024
+            while True:
+                chunk = await file.read(chunk_size)
+                if not chunk:
+                    break
+                sha.update(chunk)
+            await file.seek(0)
+            key = sha.hexdigest()
 
-            # Проверяем кеш
-            cached_result = self.cache.get(file_data)
+            # Проверяем кеш по ключу
+            # Offload file IO to thread to avoid blocking event loop
+            import asyncio
+            cached_result = await asyncio.to_thread(self.cache.get_by_key, key)
             if cached_result is not None:
-                logger.info(f"Используется кешированный результат для {
-                            file.filename}")
+                logger.info(f"Используется кешированный результат для {file.filename}")
                 return cached_result
 
             # Выполняем анализ
@@ -109,7 +147,8 @@ def cache_analysis(ttl_hours: int = 1):
 
             # Сохраняем в кеш
             try:
-                self.cache.set(file_data, result)
+                import asyncio
+                await asyncio.to_thread(self.cache.set_by_key, key, result)
             except Exception as e:
                 logger.warning(f"Не удалось сохранить в кеш: {e}")
 

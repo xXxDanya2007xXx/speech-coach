@@ -31,8 +31,7 @@ class LocalWhisperTranscriber:
         self.device = device or settings.whisper_device
         self.compute_type = compute_type or settings.whisper_compute_type
 
-        logger.info(f"Loading Whisper model: {
-                    self.model_size} on {self.device}")
+        logger.info(f"Loading Whisper model: {self.model_size} on {self.device}")
         self.model = WhisperModel(
             self.model_size,
             device=self.device,
@@ -85,8 +84,7 @@ class LocalWhisperTranscriber:
 
         full_text = " ".join(texts).strip()
 
-        logger.info(f"Transcription complete: {len(segments)} segments, {
-                    len(all_word_timings)} word timings")
+        logger.info(f"Transcription complete: {len(segments)} segments, {len(all_word_timings)} word timings")
 
         return Transcript(
             text=full_text,

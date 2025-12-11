@@ -5,6 +5,7 @@ import logging
 import uuid
 import time
 from typing import Optional, Dict, Any, List
+from app.services.cache import AnalysisCache
 import httpx
 from pydantic import ValidationError
 
@@ -121,8 +122,7 @@ class GigaChatClient:
                 )
 
             if auth_response.status_code != 200:
-                logger.error(f"Auth failed with status {
-                             auth_response.status_code}: {auth_response.text}")
+                logger.error(f"Auth failed with status {auth_response.status_code}: {auth_response.text}")
 
                 # Если все еще ошибка после повторной попытки
                 if auth_response.status_code == 429:
@@ -244,8 +244,7 @@ class GigaChatClient:
             response = await self.client.post(chat_url, json=request_data, headers=headers)
 
             if response.status_code != 200:
-                logger.error(f"GigaChat API error {
-                             response.status_code}: {response.text}")
+                logger.error(f"GigaChat API error {response.status_code}: {response.text}")
                 return None
 
             result = response.json()
@@ -255,8 +254,7 @@ class GigaChatClient:
                 return None
 
             content = result["choices"][0]["message"]["content"]
-            logger.info(f"GigaChat response received: {
-                        len(content)} characters")
+            logger.info(f"GigaChat response received: {len(content)} characters")
 
             # Очищаем и парсим JSON
             cleaned_content = self._clean_json_response(content)
@@ -308,8 +306,7 @@ class GigaChatClient:
         if analysis_result.pauses.long_pauses:
             pauses_info = "Длинные паузы:\n"
             for pause in analysis_result.pauses.long_pauses[:3]:
-                pauses_info += f"- {pause['duration']:.1f} сек (с {pause['start']:.1f} по {
-                    pause['end']:.1f})\n"
+                pauses_info += f"- {pause['duration']:.1f} сек (с {pause['start']:.1f} по {pause['end']:.1f})\n"
 
         advice_info = ""
         for advice in analysis_result.advice:
@@ -364,6 +361,151 @@ class GigaChatClient:
         except Exception as e:
             logger.debug(f"Ошибка закрытия HTTP клиента: {e}")
 
+    async def classify_fillers_context(self, contexts: List[Dict[str, Any]], cache: Optional[AnalysisCache] = None) -> List[Dict[str, Any]]:
+        """Classify each candidate filler word in context using LLM with caching and retry/backoff.
+        Returns enriched list of contexts with `is_filler_context` and `score`.
+        """
+        if not settings.llm_fillers_enabled:
+            return [dict(**c, is_filler_context=False, score=0.0) for c in contexts]
+
+        if not self._access_token:
+            try:
+                await self.authenticate()
+            except GigaChatError as e:
+                logger.warning(f"Failed to authenticate for filler classification: {e}")
+                return [dict(**c, is_filler_context=False, score=0.0) for c in contexts]
+
+        import hashlib
+        import json as _json
+        import asyncio as _asyncio
+
+        def _ctx_key(c):
+            s = _json.dumps({
+                "word": c.get("word"),
+                "exact_word": c.get("exact_word"),
+                "context_before": c.get("context_before", ""),
+                "context_after": c.get("context_after", "")
+            }, ensure_ascii=False, sort_keys=True)
+            return hashlib.sha256(s.encode("utf-8")).hexdigest()
+
+        results: List[Dict[str, Any]] = []
+        to_query = []
+        idx_map = {}
+        for i, c in enumerate(contexts):
+            key = _ctx_key(c)
+            cached = None
+            if cache is not None:
+                try:
+                    cached = cache.get_by_key(key)
+                except Exception:
+                    cached = None
+
+            if cached is not None:
+                results.append(dict(**c, is_filler_context=cached.get("is_filler", False), score=cached.get("confidence", 0.0)))
+            else:
+                idx_map[len(to_query)] = i
+                to_query.append((key, c))
+
+        if not to_query:
+            return results
+
+        # Build prompt and request for to_query
+        items_block = _json.dumps([{
+            "index": i + 1,
+            "word": q[1].get('word'),
+            "exact_word": q[1].get('exact_word'),
+            "context_before": q[1].get('context_before', ''),
+            "context_after": q[1].get('context_after', ''),
+            "timestamp": q[1].get('timestamp', 0.0)
+        } for i, q in enumerate(to_query)], ensure_ascii=False)
+
+        user_prompt = f"Оцени, являются ли слова в каждом пункте явными словами-паразитами в данном контексте. Верни JSON-массив одинаковой длины с объектами: {{index: N, is_filler: true|false, confidence: 0..1}}\n\n{items_block}"
+
+        chat_url = f"{self.api_url}/chat/completions"
+        request_data = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": "Ты ассистент, помогающий классифицировать слова-паразиты в контексте выступления. Отвечай в JSON-формате только ответом пользователя."},
+                {"role": "user", "content": user_prompt}
+            ],
+            "temperature": 0.0,
+            "max_tokens": min(self.max_tokens, settings.llm_fillers_max_tokens),
+            "response_format": {"type": "json_array"}
+        }
+
+        headers = {
+            "Authorization": f"Bearer {self._access_token}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
+
+        # Retry loop
+        max_retries = 3
+        backoff = 1
+        response = None
+        for attempt in range(max_retries):
+            try:
+                response = await self.client.post(chat_url, json=request_data, headers=headers)
+                if response.status_code == 200:
+                    break
+                elif response.status_code in (429, 503):
+                    logger.warning(f"GigaChat rate-limited (status {response.status_code}), retrying in {backoff}s")
+                    await _asyncio.sleep(backoff)
+                    backoff *= 2
+                    continue
+                else:
+                    logger.error(f"GigaChat classify API error {response.status_code}: {response.text}")
+                    return [dict(**c, is_filler_context=False, score=0.0) for c in contexts]
+            except Exception as e:
+                logger.warning(f"GigaChat classify request failed (attempt {attempt+1}): {e}")
+                await _asyncio.sleep(backoff)
+                backoff *= 2
+                continue
+
+        if response is None:
+            logger.error("GigaChat classify API failed after retries")
+            return [dict(**c, is_filler_context=False, score=0.0) for c in contexts]
+
+        try:
+            body = response.json()
+            if not body.get("choices"):
+                return [dict(**c, is_filler_context=False, score=0.0) for c in contexts]
+            content = body["choices"][0]["message"]["content"]
+            parsed = json.loads(content)
+            enriched_map = {}
+            for r in parsed:
+                idx = r.get("index", None)
+                if idx is None:
+                    continue
+                qpos = idx - 1
+                if qpos < 0 or qpos >= len(to_query):
+                    continue
+                key, original = to_query[qpos]
+                enriched = dict(**original, is_filler_context=bool(r.get("is_filler", False)), score=float(r.get("confidence", 0.0)))
+                enriched_map[key] = enriched
+
+            final_results = []
+            final_results.extend(results)
+            for key, c in to_query:
+                enriched = enriched_map.get(key, dict(**c, is_filler_context=False, score=0.0))
+                if cache is not None:
+                    try:
+                        cache.set_by_key(key, {"is_filler": enriched.get("is_filler_context", False), "confidence": enriched.get("score", 0.0)})
+                    except Exception:
+                        pass
+                final_results.append(enriched)
+
+            # Reassemble in the original input order
+            ordered = [None] * len(contexts)
+            r_i = 0
+            for i in range(len(contexts)):
+                ordered[i] = final_results[r_i]
+                r_i += 1
+            return ordered
+        except Exception as e:
+            logger.warning(f"Failed to parse filler classification response: {e}")
+            return [dict(**c, is_filler_context=False, score=0.0) for c in contexts]
+
     async def analyze_speech_with_timings(self, timed_result_dict: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Отправляет результаты анализа с таймингами в GigaChat.
@@ -371,6 +513,7 @@ class GigaChatClient:
         if not settings.gigachat_enabled:
             logger.info("GigaChat detailed analysis is disabled")
             return None
+
 
         # Пробуем аутентифицироваться, если нужно
         if not self._access_token:
