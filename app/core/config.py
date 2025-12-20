@@ -5,7 +5,9 @@ import json
 
 
 class Settings(BaseSettings):
-    # Путь к ffmpeg (по умолчанию просто "ffmpeg" из PATH)
+    """Application configuration settings."""
+    
+    # FFmpeg configuration
     ffmpeg_path: str = Field(default="ffmpeg", alias="FFMPEG_PATH")
 
     # Настройки локального Whisper (faster-whisper)
@@ -35,13 +37,13 @@ class Settings(BaseSettings):
         alias="GIGACHAT_API_URL"
     )
     gigachat_model: str = Field(
-        default="GigaChat", alias="GIGACHAT_MODEL"
+        default="gigachat:latest", alias="GIGACHAT_MODEL"
     )
     gigachat_timeout: int = Field(
         default=30, alias="GIGACHAT_TIMEOUT"
     )
     gigachat_max_tokens: int = Field(
-        default=2000, alias="GIGACHAT_MAX_TOKENS"
+        default=131072, alias="GIGACHAT_MAX_TOKENS"
     )
     gigachat_scope: str = Field(
         default="GIGACHAT_API_PERS",
@@ -92,15 +94,23 @@ class Settings(BaseSettings):
     # Filler detection settings
     filler_cluster_gap_sec: float = Field(default=2.0, alias="FILLER_CLUSTER_GAP_SEC")
 
+    # Emphasis detection settings
+    emphasis_window_size: int = Field(default=7, alias="EMPHASIS_WINDOW_SIZE")
+    emphasis_mad_multiplier: float = Field(default=2.5, alias="EMPHASIS_MAD_MULTIPLIER")
+    emphasis_min_duration: float = Field(default=0.05, alias="EMPHASIS_MIN_DURATION")
+    emphasis_pause_threshold: float = Field(default=0.8, alias="EMPHASIS_PAUSE_THRESHOLD")
+    emphasis_content_boost: float = Field(default=0.2, alias="EMPHASIS_CONTENT_BOOST")
+
     # LLM settings for contextual filler detection
     llm_fillers_enabled: bool = Field(default=True, alias="LLM_FILLERS_ENABLED")
     llm_fillers_max_tokens: int = Field(default=256, alias="LLM_FILLERS_MAX_TOKENS")
     llm_fillers_model: str = Field(default="GigaChat", alias="LLM_FILLERS_MODEL")
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive": False,
+    }
 
     @field_validator("max_file_size_mb")
     def validate_max_file_size(cls, v):

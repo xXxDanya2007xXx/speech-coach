@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Speech Coach - Загрузка видео для анализа">
+    <title>Загрузить видео - Speech Coach</title>
+    <link rel="icon" href="/favicon.ico">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-primary: #0a0c15;
+            --bg-secondary: #101318;
+            --bg-tertiary: #151820;
+            --text: #e2e8f0;
+            --text-secondary: #a0aec0;
+            --accent: #60a5fa;
+            --accent-hover: #93c5fd;
+            --accent-bright: #00d4ff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            background-color: var(--bg-primary);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            scroll-behavior: smooth;
+        }
+
+        /* Header */
+        .header {
+            background-color: rgba(10, 12, 21, 0.95);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            position: fixed;
+            top: 0;
+            z-index: 50;
+            width: 100%;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+            color: var(--text);
+            transition: all 0.3s;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+        }
+
+        .logo:hover {
+            background-color: rgba(96, 165, 250, 0.15);
+            color: var(--accent-hover);
+        }
+
+        .logo:hover .logo-year {
+            color: var(--accent-hover);
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.25rem;
+        }
+
+        .logo-text {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-year {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            margin-left: 0.25rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.3s;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+        }
+
+        .nav-link:hover {
+            color: var(--accent-hover);
+            background-color: rgba(96, 165, 250, 0.15);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            color: white;
+            padding: 0.625rem 1.5rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 700;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(96, 165, 250, 0.5);
+            color: white;
+            background: linear-gradient(135deg, #7eb5ff 0%, #5fa5ff 100%);
+        }
+
+        /* Main Content */
+        .main-container {
+            min-height: calc(100vh - 140px);
+            padding: 60px 1rem 1rem;
+            margin: 0 auto;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #60a5fa 0%, #93c5fd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-header p {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Upload Card */
+        .upload-card {
+            background: rgba(16, 19, 24, 0.8);
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+        }
+
+        .upload-card:hover {
+            border-color: rgba(96, 165, 250, 0.3);
+            background: rgba(96, 165, 250, 0.03);
+        }
+
+        /* Upload Area */
+        .upload-area {
+            border: 2px dashed rgba(96, 165, 250, 0.5);
+            border-radius: 10px;
+            padding: 1.5rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(96, 165, 250, 0.02);
+            margin-bottom: 1rem;
+        }
+
+        .upload-area:hover {
+            border-color: var(--accent);
+            background: rgba(96, 165, 250, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: var(--accent-bright);
+            background: rgba(96, 165, 250, 0.12);
+        }
+
+        .upload-icon {
+            font-size: 2rem;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-text h3 {
+            font-size: 1rem;
+            color: var(--text);
+            margin-bottom: 0.3rem;
+        }
+
+        .upload-text p {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            margin-bottom: 0.1rem;
+        }
+
+        .upload-hint {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+            opacity: 0.8;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        /* Formats Info */
+        .formats-info {
+            background: transparent;
+            border: none;
+            padding: 1.5rem 0;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .formats-info h4 {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .formats-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .format-badge {
+            background: transparent;
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            color: var(--text-secondary);
+            padding: 0.4rem 0.9rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .format-badge:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* File Preview */
+        .file-preview {
+            display: none;
+            background: rgba(96, 165, 250, 0.05);
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            animation: slideDown 0.3s ease;
+        }
+
+        .file-preview.show {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.2);
+        }
+
+        .file-icon {
+            font-size: 2.5rem;
+            color: var(--accent);
+        }
+
+        .file-details h4 {
+            color: var(--text);
+            margin-bottom: 0.5rem;
+            word-break: break-word;
+            font-weight: 600;
+        }
+
+        .file-size {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Analysis Type Section */
+        .analysis-section {
+            margin-bottom: 2rem;
+        }
+
+        .analysis-section h3 {
+            color: var(--text);
+            margin-bottom: 1.5rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .analysis-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .analysis-option {
+            position: relative;
+            padding: 1.25rem;
+            border: 2px solid rgba(96, 165, 250, 0.2);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(96, 165, 250, 0.02);
+            text-align: center;
+        }
+
+        .analysis-option:hover {
+            border-color: var(--accent);
+            background: rgba(96, 165, 250, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .analysis-option input[type="radio"] {
+            display: none;
+        }
+
+        .analysis-option.selected {
+            border-color: var(--accent);
+            background: rgba(96, 165, 250, 0.12);
+        }
+
+        .option-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .option-title {
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 0.75rem;
+            font-size: 1.1rem;
+        }
+
+        .option-description {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 1rem;
+        }
+
+        .warning-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.4);
+            color: #ffc107;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .warning-badge i {
+            font-size: 0.85rem;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+        }
+
+        .btn-cancel {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            padding: 0.5rem 1.25rem;
+            border: 1.5px solid rgba(239, 68, 68, 0.3);
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-cancel:hover {
+            border-color: #ef4444;
+            color: #fca5a5;
+            background: rgba(239, 68, 68, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .btn-analyze {
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.85rem;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-analyze:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(96, 165, 250, 0.5);
+            background: linear-gradient(135deg, #7eb5ff 0%, #5fa5ff 100%);
+        }
+
+        .btn-analyze:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Success Message */
+        .success-message {
+            display: none;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #10b981;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            text-align: center;
+            animation: slideDown 0.3s ease;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        .success-message h4 {
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        /* Checkbox Consent */
+        .consent-checkbox {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            padding: 1.25rem;
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.08) 0%, rgba(96, 165, 250, 0.03) 100%);
+            border: 1px solid rgba(96, 165, 250, 0.25);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .consent-checkbox:hover {
+            border-color: rgba(96, 165, 250, 0.35);
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.12) 0%, rgba(96, 165, 250, 0.05) 100%);
+        }
+
+        .consent-checkbox input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-top: 1px;
+            cursor: pointer;
+            accent-color: var(--accent);
+            flex-shrink: 0;
+            border-radius: 4px;
+        }
+
+        .consent-checkbox label {
+            cursor: pointer;
+            flex: 1;
+            margin: 0;
+            padding: 0;
+        }
+
+        .consent-checkbox label strong {
+            color: var(--text);
+            font-size: 0.95rem;
+        }
+
+        .consent-checkbox label p {
+            margin: 0.25rem 0 0 0;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+
+        /* Progress Display */
+        .progress-container {
+            display: none;
+            padding: 1.5rem;
+            border-radius: 8px;
+            background: rgba(96, 165, 250, 0.05);
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            margin-bottom: 1.5rem;
+        }
+
+        .progress-container.show {
+            display: block;
+        }
+
+        .progress-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .progress-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(96, 165, 250, 0.3);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .progress-title {
+            color: var(--text);
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .progress-messages {
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .progress-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.5rem 0;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+
+        .progress-item-icon {
+            color: var(--accent);
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            border-radius: 16px;
+            padding: 1.75rem;
+            max-width: 500px;
+            width: 100%;
+            animation: slideUp 0.3s ease;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.2);
+        }
+
+        .modal-icon {
+            font-size: 2rem;
+            color: #ffc107;
+            flex-shrink: 0;
+        }
+
+        .modal-header h2 {
+            color: var(--text);
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .modal-body {
+            margin-bottom: 2rem;
+        }
+
+        .modal-body p {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        .risk-section {
+            background: rgba(255, 193, 7, 0.05);
+            border-left: 3px solid #ffc107;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .risk-section h4 {
+            color: #ffc107;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .risk-list {
+            list-style: none;
+        }
+
+        .risk-list li {
+            color: var(--text-secondary);
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .risk-list li:before {
+            content: "⚠";
+            color: #ffc107;
+            font-weight: bold;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .modal-footer .btn-cancel {
+            flex: 1;
+        }
+
+        .modal-footer .btn-primary {
+            flex: 1;
+        }
+
+        /* Footer */
+        .footer {
+            background-color: rgba(10, 12, 21, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 2rem 0;
+            width: 100%;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            width: 100%;
+        }
+
+        .footer-links {
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .footer-link-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .footer-link-item a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .footer-link-item a:hover {
+            color: var(--accent);
+        }
+
+        .footer-divider {
+            color: rgba(255, 255, 255, 0.2);
+            font-weight: 300;
+        }
+
+        .footer-bottom {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-content {
+                padding: 1rem;
+            }
+
+            .nav-links {
+                gap: 1rem;
+            }
+
+            .main-container {
+                padding: 80px 1rem 1rem;
+            }
+
+            .page-header h1 {
+                font-size: 2rem;
+            }
+
+            .upload-card {
+                padding: 1.5rem;
+            }
+
+            .action-buttons {
+                flex-direction: column-reverse;
+            }
+
+            .btn-cancel, .btn-analyze {
+                width: 100%;
+            }
+
+            .analysis-options {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                padding: 1.5rem;
+            }
+
+            .modal-footer {
+                flex-direction: column-reverse;
+            }
+
+            .nav-link {
+                font-size: 0.85rem;
+            }
+
+            .footer-links {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .footer-divider {
+                display: none;
+            }
+
+            .footer-link-item {
+                justify-content: center;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .nav-links {
+                gap: 0.5rem;
+            }
+
+            .btn-primary {
+                padding: 0.625rem 1rem;
+                font-size: 0.85rem;
+            }
+
+            .logo-year {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <div class="logo-icon">
+                    <i class="fas fa-microphone"></i>
+                </div>
+                <span class="logo-text">Speech Coach<span class="logo-year">2025</span></span>
+            </a>
+            <nav class="nav-links">
+                <a href="#" class="nav-link">
+                    <i class="fas fa-book"></i>
+                    Документация
+                </a>
+                <a href="#" class="nav-link">
+                    <i class="fas fa-question-circle"></i>
+                    FAQ
+                </a>
+                <a href="/" class="btn-primary">
+                    <i class="fas fa-home"></i>
+                    Главная
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="main-container">
+        <div class="page-header">
+            <h1>Загрузите видео для анализа</h1>
+        </div>
+
+        <div class="upload-card">
+            <div class="success-message" id="successMessage">
+                <h4>✓ Анализ начинается</h4>
+                <p>Пожалуйста, дождитесь завершения процесса</p>
+            </div>
+
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-header">
+                    <div class="progress-spinner"></div>
+                    <div class="progress-title">Анализирую видео...</div>
+                </div>
+                <div class="progress-messages" id="progressMessages"></div>
+            </div>
+
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <div class="upload-text">
+                    <h3>Перетащите видео сюда</h3>
+                    <p>или нажмите для выбора</p>
+                    <div class="upload-hint">Максимальный размер: 500 МБ</div>
+                </div>
+                <input type="file" id="file-input" accept="video/*">
+            </div>
+
+            <div style="background: rgba(96, 165, 250, 0.05); border: 1px solid rgba(96, 165, 250, 0.2); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                <h4 style="color: var(--text); margin-bottom: 0.75rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-info-circle" style="color: var(--accent);"></i>
+                    Ограничение на размер файла
+                </h4>
+                <p style="color: var(--text-secondary); font-size: 0.95rem; margin: 0; line-height: 1.6;">
+                    Максимальный размер загружаемого видеофайла составляет <strong>500 МБ</strong>. Это ограничение установлено для оптимизации времени обработки и обеспечения стабильности сервиса. Если ваше видео больше, рекомендуем сжать его перед загрузкой или разделить на части
+                </p>
+            </div>
+
+            <div class="formats-info">
+                <h4>Поддерживаемые форматы</h4>
+                <div class="formats-list">
+                    <div class="format-badge">MP4</div>
+                    <div class="format-badge">WebM</div>
+                    <div class="format-badge">MOV</div>
+                    <div class="format-badge">AVI</div>
+                    <div class="format-badge">FLV</div>
+                    <div class="format-badge">MKV</div>
+                    <div class="format-badge">WMV</div>
+                </div>
+            </div>
+
+            <div class="file-preview" id="filePreview">
+                <div class="file-info">
+                    <div class="file-icon">
+                        <i class="fas fa-film"></i>
+                    </div>
+                    <div class="file-details">
+                        <h4 id="fileName">Выбранный файл</h4>
+                        <div class="file-size" id="fileSize">0 МБ</div>
+                    </div>
+                </div>
+
+                <div class="analysis-section">
+                    <h3>Выберите тип анализа</h3>
+                    <div style="background: rgba(96, 165, 250, 0.02); border: 1px solid rgba(96, 165, 250, 0.15); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0; line-height: 1.5;">
+                            <strong style="color: var(--text);">Стандартный анализ</strong> выполняется мгновенно и не требует дополнительных согласований. <strong style="color: var(--text);">Детальный анализ с AI</strong> использует мощные алгоритмы GigaChat и требует вашего согласия на обработку видеоданных.
+                        </p>
+                    </div>
+                    <div class="analysis-options">
+                        <label class="analysis-option selected">
+                            <input type="radio" name="analysisType" value="standard" checked>
+                            <div class="option-content">
+                                <div class="option-icon">
+                                    <i class="fas fa-robot" style="color: var(--accent);"></i>
+                                </div>
+                                <div class="option-title">Стандартный анализ</div>
+                                <div class="option-description">
+                                    Быстрый анализ: темп речи, слова-паразиты, громкость и паузы
+                                </div>
+                            </div>
+                        </label>
+                        <label class="analysis-option">
+                            <input type="radio" name="analysisType" value="advanced">
+                            <div class="option-content">
+                                <div class="option-icon">
+                                    <i class="fas fa-brain" style="color: var(--accent);"></i>
+                                </div>
+                                <div class="option-title">Детальный анализ с AI</div>
+                                <div class="option-description">
+                                    Глубокий анализ с GigaChat: риторика, контент, невербальные сигналы
+                                </div>
+                                <div class="warning-badge">
+                                    <i class="fas fa-shield-alt"></i> требует согласия
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn-cancel" id="clearBtn">
+                        <i class="fas fa-trash-alt"></i> Отмена
+                    </button>
+                    <button class="btn-analyze btn-primary" id="analyzeBtn">
+                        <i class="fas fa-play"></i> Начать анализ
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Warning Modal -->
+    <div class="modal" id="warningModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h2>Детальный анализ с GigaChat</h2>
+            </div>
+            <div class="modal-body">
+                <p>Вы переходите на детальный анализ с использованием GigaChat.</p>
+                
+                <div class="risk-section">
+                    <h4><i class="fas fa-info-circle"></i> Важная информация</h4>
+                    <ul class="risk-list">
+                        <li>Видеофайл будет передан на защищённые серверы GigaChat для обработки</li>
+                        <li>Данные обрабатываются в соответствии с политикой конфиденциальности и условиями использования GigaChat</li>
+                        <li>Анализ выполняется современными алгоритмами машинного обучения</li>
+                        <li>Время обработки может быть больше, чем при стандартном анализе</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="consent-checkbox">
+                <input type="checkbox" id="consentCheckbox">
+                <label for="consentCheckbox">
+                    <p><strong>Я согласен на обработку видео с использованием GigaChat</strong><br>
+                    Ознакомлен с условиями конфиденциальности и согласен на отправку данных на серверы обработки</p>
+                </label>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-cancel" id="cancelBtn">
+                    <i class="fas fa-arrow-left"></i> Отмена
+                </button>
+                <button class="btn-primary btn-analyze" id="confirmBtn" disabled>
+                    <i class="fas fa-check"></i> Продолжить
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-links">
+                <div class="footer-link-item">
+                    <a href="/">
+                        <i class="fas fa-home"></i>
+                        Главная
+                    </a>
+                </div>
+                <span class="footer-divider">•</span>
+                <div class="footer-link-item">
+                    <a href="/upload">
+                        <i class="fas fa-wand-magic-sparkles"></i>
+                        Анализ
+                    </a>
+                </div>
+                <span class="footer-divider">•</span>
+                <div class="footer-link-item">
+                    <a href="#">
+                        <i class="fas fa-book"></i>
+                        Документация
+                    </a>
+                </div>
+                <span class="footer-divider">•</span>
+                <div class="footer-link-item">
+                    <a href="#">
+                        <i class="fas fa-question-circle"></i>
+                        FAQ
+                    </a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Speech Coach. Распространяется под лицензией MIT.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('file-input');
+        const filePreview = document.getElementById('filePreview');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const analysisTypeRadios = document.querySelectorAll('input[name="analysisType"]');
+        const analysisOptions = document.querySelectorAll('.analysis-option');
+        const warningModal = document.getElementById('warningModal');
+        const confirmBtn = document.getElementById('confirmBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const successMessage = document.getElementById('successMessage');
+
+        let selectedFile = null;
+        let selectedAnalysisType = 'standard';
+        let advancedConfirmed = false; // Флаг для блокировки переключения после подтверждения
+
+        // Upload area click
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleFileSelect(file);
+            }
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('video/')) {
+                handleFileSelect(file);
+            }
+        });
+
+        function handleFileSelect(file) {
+            selectedFile = file;
+            fileName.textContent = file.name;
+            fileSize.textContent = (file.size / (1024 * 1024)).toFixed(2) + ' МБ';
+            filePreview.classList.add('show');
+            uploadArea.style.display = 'none';
+        }
+
+        // Analysis type selection with modal for advanced
+        analysisOptions.forEach((option) => {
+            option.addEventListener('click', () => {
+                const radio = option.querySelector('input');
+                const newType = radio.value;
+
+                // Если уже подтвердили advanced, не позволяем переключиться на standard
+                if (advancedConfirmed && newType === 'standard') {
+                    return;
+                }
+
+                // Show modal when switching to advanced
+                if (newType === 'advanced' && selectedAnalysisType !== 'advanced') {
+                    consentCheckbox.checked = false; // Сбросить чекбокс при открытии модали
+                    confirmBtn.disabled = true; // Убедиться, что кнопка неактивна
+                    warningModal.classList.add('show');
+                } else if (newType === 'standard' && !advancedConfirmed) {
+                    // Only switch to standard without modal
+                    analysisOptions.forEach(opt => opt.classList.remove('selected'));
+                    option.classList.add('selected');
+                    radio.checked = true;
+                    selectedAnalysisType = newType;
+                    consentCheckbox.checked = false;
+                    updateAnalyzeButtonState();
+                }
+            });
+        });
+
+        // Consent checkbox listener
+        const consentCheckbox = document.getElementById('consentCheckbox');
+        
+        function updateAnalyzeButtonState() {
+            // analyzeBtn активна только если выбран advanced и согласие дано
+            analyzeBtn.disabled = !(selectedAnalysisType === 'advanced' && consentCheckbox.checked);
+        }
+        
+        consentCheckbox.addEventListener('change', () => {
+            confirmBtn.disabled = !consentCheckbox.checked;
+            updateAnalyzeButtonState();
+        });
+
+        // Analyze button
+        analyzeBtn.addEventListener('click', () => {
+            // Scroll to progress container
+            const progressContainer = document.getElementById('progressContainer');
+            progressContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            setTimeout(() => {
+                startAnalysis();
+            }, 300);
+        });
+
+        // Confirm button
+        confirmBtn.addEventListener('click', () => {
+            // Switch to advanced analysis type
+            analysisOptions.forEach(opt => opt.classList.remove('selected'));
+            analysisOptions[1].classList.add('selected');
+            analysisTypeRadios[1].checked = true;
+            selectedAnalysisType = 'advanced';
+            advancedConfirmed = true; // Устанавливаем флаг подтверждения
+            
+            warningModal.classList.remove('show');
+            updateAnalyzeButtonState();
+        });
+
+        // Cancel button
+        cancelBtn.addEventListener('click', () => {
+            warningModal.classList.remove('show');
+            consentCheckbox.checked = false;
+            confirmBtn.disabled = true;
+            // Keep current selection
+            analysisOptions.forEach(opt => opt.classList.remove('selected'));
+            analysisOptions[0].classList.add('selected');
+            analysisTypeRadios[0].checked = true;
+            selectedAnalysisType = 'standard';
+            advancedConfirmed = false; // Разблокируем переключение
+            updateAnalyzeButtonState();
+        });
+
+        // Clear button
+        clearBtn.addEventListener('click', () => {
+            selectedFile = null;
+            fileInput.value = '';
+            filePreview.classList.remove('show');
+            uploadArea.style.display = 'block';
+            selectedAnalysisType = 'standard';
+            advancedConfirmed = false;
+            analysisOptions.forEach(opt => opt.classList.remove('selected'));
+            analysisOptions[0].classList.add('selected');
+            analysisTypeRadios[0].checked = true;
+            consentCheckbox.checked = false;
+            successMessage.classList.remove('show');
+            updateAnalyzeButtonState();
+        });
+
+        // ESC key to close modal
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && warningModal.classList.contains('show')) {
+                warningModal.classList.remove('show');
+                consentCheckbox.checked = false;
+                confirmBtn.disabled = true;
+                // Keep current selection
+                analysisOptions.forEach(opt => opt.classList.remove('selected'));
+                analysisOptions[0].classList.add('selected');
+                analysisTypeRadios[0].checked = true;
+                selectedAnalysisType = 'standard';
+                advancedConfirmed = false;
+                updateAnalyzeButtonState();
+            }
+        });
+
+        function startAnalysis() {
+            if (!selectedFile) return;
+
+            successMessage.classList.add('show');
+            analyzeBtn.disabled = true;
+            
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            const endpoint = selectedAnalysisType === 'advanced' 
+                ? '/api/analyze/detailed' 
+                : '/api/analyze';
+
+            fetch(endpoint, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                successMessage.querySelector('h4').textContent = '✓ Анализ успешно загружен';
+                successMessage.querySelector('p').textContent = 'Переходим к результатам...';
+                
+                // Создаем объект URL для видеофайла
+                const videoUrl = URL.createObjectURL(selectedFile);
+                
+                // Сохраняем результаты анализа и видео URL
+                const resultData = {
+                    ...data,
+                    video_blob_url: videoUrl,
+                    video_name: selectedFile.name
+                };
+                
+                localStorage.setItem('lastAnalysisResult', JSON.stringify(resultData));
+                
+                // Также сохраняем файл отдельно для доступа
+                try {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        localStorage.setItem('lastVideoFile', e.target.result);
+                    };
+                    reader.readAsDataURL(selectedFile);
+                } catch (e) {
+                    console.warn('Could not save video to localStorage:', e);
+                }
+                
+                setTimeout(() => {
+                    window.location.href = '/results';
+                }, 2000);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                successMessage.classList.remove('show');
+                analyzeBtn.disabled = false;
+                alert('Ошибка при загрузке файла. Пожалуйста, попробуйте снова.');
+            });
+        }
+
+        // Инициализация при загрузке страницы
+        updateAnalyzeButtonState();
+    </script>
+</body>
+</html>

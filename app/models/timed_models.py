@@ -34,6 +34,7 @@ class WordTiming(BaseModel):
         None, description="Контекст перед словом (2-3 слова)")
     context_after: Optional[str] = Field(
         None, description="Контекст после слова (2-3 слова)")
+    rms: Optional[float] = Field(None, description="RMS/energy level for this word segment (optional)")
 
 
 class FillerWordDetail(BaseModel):
@@ -221,6 +222,10 @@ class TimedAnalysisResult(BaseModel):
 
     # Полный транскрипт
     transcript: str = Field(description="Полный текст транскрипции")
+
+    # Видео файл
+    video_path: Optional[str] = Field(
+        default=None, description="Путь к сохраненному видео файлу")
 
     # Детализированные тайминги
     timeline: SpeechTimeline = Field(

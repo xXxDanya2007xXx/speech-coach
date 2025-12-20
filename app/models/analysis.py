@@ -46,4 +46,5 @@ class AnalysisResult(BaseModel):
     phrases: PhraseStats
     advice: List[AdviceItem]
     transcript: str
+    video_path: Optional[str] = None  # Путь к сохраненному видео файлу
     gigachat_analysis: Optional[Any] = None

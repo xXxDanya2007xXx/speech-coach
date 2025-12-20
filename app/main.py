@@ -1,26 +1,46 @@
 import logging
+import uuid
+from contextvars import ContextVar
+from pathlib import Path
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse, Response
 from fastapi.exceptions import RequestValidationError
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes.health import router as health_router
 from app.api.routes.analysis import router as analysis_router
 from app.api.routes.chat import router as chat_router
 from app.core.lifespan import lifespan
 from app.core.config import settings
-from app.core.exceptions import SpeechCoachException
 from app.core.logging_config import setup_logging
-
 from app.core.exceptions import (
-    SpeechCoachException, FileValidationError, FileTooLargeError,
-    UnsupportedFileTypeError, TranscriptionError, AnalysisError, GigaChatError
+    SpeechCoachException,
+    FileValidationError,
+    FileTooLargeError,
+    UnsupportedFileTypeError,
+    TranscriptionError,
+    AnalysisError,
+    GigaChatError,
 )
 
-# Настраиваем логирование
-setup_logging(log_level="INFO", log_file="logs/app.log")
+# Setup logging with proper log file handling
+log_file = settings.log_file or "logs/app.log"
+setup_logging(
+    log_level=settings.log_level,
+    log_file=log_file,
+    max_file_size=settings.log_max_size_mb * 1024 * 1024,
+    backup_count=settings.log_backup_count,
+)
 
 logger = logging.getLogger(__name__)
+
+# Контекст для Request ID
+request_id_var: ContextVar[str] = ContextVar('request_id', default='')
+
+def get_request_id() -> str:
+    """Получить текущий Request ID"""
+    return request_id_var.get()
 
 app = FastAPI(
     title="Speech Coach API",
@@ -29,52 +49,10 @@ app = FastAPI(
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json"
+    openapi_url="/openapi.json",
 )
 
-# Глобальный обработчик кастомных исключений
-
-
-@app.exception_handler(SpeechCoachException)
-async def speech_coach_exception_handler(request: Request, exc: SpeechCoachException):
-    logger.warning(f"SpeechCoachException: {exc.detail}")
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={
-            "detail": exc.detail,
-            "error_type": exc.__class__.__name__
-        },
-    )
-
-# Обработчик ошибок валидации
-
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.warning(f"Validation error: {exc.errors()}")
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={
-            "detail": exc.errors(),
-            "body": exc.body
-        },
-    )
-
-# Глобальный обработчик неожиданных ошибок
-
-
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled exception: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "detail": "Internal server error",
-            "error_type": exc.__class__.__name__,
-            "message": str(exc)
-        },
-    )
-
+# Exception handlers - specific handlers before general ones
 
 @app.exception_handler(FileTooLargeError)
 async def file_too_large_handler(request: Request, exc: FileTooLargeError):
@@ -84,7 +62,7 @@ async def file_too_large_handler(request: Request, exc: FileTooLargeError):
         content={
             "detail": exc.detail,
             "error_type": "FileTooLargeError",
-            "max_size_mb": 100
+            "max_size_mb": settings.max_file_size_mb,
         },
     )
 
@@ -97,7 +75,7 @@ async def unsupported_file_type_handler(request: Request, exc: UnsupportedFileTy
         content={
             "detail": exc.detail,
             "error_type": "UnsupportedFileTypeError",
-            "allowed_extensions": [".mp4", ".mov", ".avi", ".mkv", ".webm", ".flv", ".wmv", ".m4v"]
+            "allowed_extensions": settings.allowed_video_extensions,
         },
     )
 
@@ -110,7 +88,7 @@ async def transcription_error_handler(request: Request, exc: TranscriptionError)
         content={
             "detail": "Ошибка распознавания речи. Убедитесь, что в видео есть четкая речь.",
             "error_type": "TranscriptionError",
-            "internal_error": exc.detail
+            "internal_error": exc.detail,
         },
     )
 
@@ -123,31 +101,165 @@ async def analysis_error_handler(request: Request, exc: AnalysisError):
         content={
             "detail": "Ошибка анализа речи. Попробуйте другой файл.",
             "error_type": "AnalysisError",
-            "internal_error": exc.detail
+            "internal_error": exc.detail,
         },
     )
 
-# CORS middleware
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.warning(f"Validation error: {exc.errors()}")
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors()},
+    )
+
+
+@app.exception_handler(SpeechCoachException)
+async def speech_coach_exception_handler(request: Request, exc: SpeechCoachException):
+    logger.warning(f"SpeechCoachException: {exc.detail}")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail, "error_type": exc.__class__.__name__},
+    )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "detail": "Internal server error",
+            "error_type": exc.__class__.__name__,
+        },
+    )
+
+# CORS middleware - restrict to safe origins
+allow_origins = ["http://localhost:3000", "http://localhost:8000", "http://127.0.0.1:8000"]
+if settings.log_level == "DEBUG":
+    allow_origins.append("*")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allow_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# Request ID middleware (должен быть после CORS)
+@app.middleware("http")
+async def add_request_id_middleware(request: Request, call_next):
+    """Добавляет уникальный Request ID для каждого запроса"""
+    request_id = str(uuid.uuid4())
+    request_id_var.set(request_id)
+    
+    response = await call_next(request)
+    
+    # Добавляем в headers для отладки
+    response.headers["X-Request-ID"] = request_id
+    
+    return response
 
 # Включаем роутеры
 app.include_router(health_router)
 app.include_router(analysis_router)
 app.include_router(chat_router)
 
+# Обслуживание HTML-страниц
+template_dir = Path(__file__).parent / "templates"
+static_dir = Path(__file__).parent / "static"
+
+# Mount static files (favicon, assets)
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+else:
+    # create directory at runtime if missing to avoid mount errors in some environments
+    try:
+        static_dir.mkdir(exist_ok=True)
+        app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    except Exception:
+        # best-effort mount; if it fails, favicon route has a fallback
+        pass
 
 @app.get("/")
 async def root():
-    """Корневой эндпоинт"""
+    """Главная страница"""
+    html_file = template_dir / "index.html"
+    if html_file.exists():
+        return FileResponse(html_file, media_type="text/html")
     return {
         "name": "Speech Coach API",
         "version": "1.0.0",
         "status": "running",
         "docs": "/docs"
     }
+
+@app.get("/upload")
+async def upload_page():
+    """Страница загрузки файлов"""
+    html_file = template_dir / "upload.html"
+    if html_file.exists():
+        return FileResponse(html_file, media_type="text/html")
+    return JSONResponse({"error": "Upload page not found"}, status_code=404)
+
+@app.get("/results")
+async def results_page():
+    """Страница результатов анализа"""
+    html_file = template_dir / "results.html"
+    if html_file.exists():
+        return FileResponse(html_file, media_type="text/html")
+    return JSONResponse({"error": "Results page not found"}, status_code=404)
+
+
+@app.get("/favicon.ico")
+async def favicon():
+        """Serve favicon.ico from static if present; otherwise return a small inline SVG."""
+        ico_path = static_dir / "favicon.ico"
+        svg_path = static_dir / "favicon.svg"
+        if ico_path.exists():
+                return FileResponse(ico_path, media_type="image/x-icon")
+        if svg_path.exists():
+                return FileResponse(svg_path, media_type="image/svg+xml")
+
+        svg = """
+        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>
+            <rect width='100%' height='100%' fill='#0d1117'/>
+            <g fill='none' stroke='#58a6ff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3'>
+                <path d='M32 14v18'/>
+                <path d='M22 28a10 10 0 0 0 20 0'/>
+                <path d='M20 36v4a12 12 0 0 0 24 0v-4'/>
+            </g>
+        </svg>
+        """
+        return Response(content=svg, media_type="image/svg+xml")
+
+
+@app.get("/documentation")
+async def documentation_page():
+    """Страница документации сайта"""
+    html_file = template_dir / "docs.html"
+    if html_file.exists():
+        return FileResponse(html_file, media_type="text/html")
+    return JSONResponse({"error": "Documentation page not found"}, status_code=404)
+
+
+@app.get("/faq")
+async def faq_page():
+    """FAQ page"""
+    html_file = template_dir / "faq.html"
+    if html_file.exists():
+        return FileResponse(html_file, media_type="text/html")
+    return JSONResponse({"error": "FAQ page not found"}, status_code=404)
+
+
+@app.get("/documentation/{page}")
+async def documentation_subpage(page: str):
+    """Serve documentation subpages like quickstart, development, structure."""
+    # sanitize page name to avoid path traversal
+    safe_name = page.replace("..", "").replace("/", "")
+    html_file = template_dir / f"docs_{safe_name}.html"
+    if html_file.exists():
+        return FileResponse(html_file, media_type="text/html")
+    return JSONResponse({"error": "Documentation subpage not found"}, status_code=404)

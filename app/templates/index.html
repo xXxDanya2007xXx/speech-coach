@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Speech Coach - AI анализ публичной речи">
+    <title>Speech Coach - Анализ речи с помощью AI</title>
+    <link rel="icon" href="/favicon.ico">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-primary: #0a0c15;
+            --bg-secondary: #101318;
+            --bg-tertiary: #151820;
+            --text: #e2e8f0;
+            --text-secondary: #a0aec0;
+            --accent: #60a5fa;
+            --accent-hover: #93c5fd;
+            --accent-bright: #00d4ff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            background-color: var(--bg-primary);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Scroll Snap Container */
+        .scroll-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-y: scroll;
+            overflow-x: hidden;
+            scroll-snap-type: y mandatory;
+            scroll-behavior: smooth;
+            width: 100%;
+        }
+
+        .screen {
+            height: 100vh;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            scroll-snap-align: start;
+            scroll-snap-stop: always;
+            scroll-margin-top: 60px;
+        }
+
+        /* Header */
+        .header {
+            background-color: rgba(10, 12, 21, 0.95);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            position: fixed;
+            top: 0;
+            z-index: 50;
+            width: 100%;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+            color: var(--text);
+            transition: all 0.3s;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+        }
+
+        .logo:hover {
+            background-color: rgba(96, 165, 250, 0.15);
+            color: var(--accent-hover);
+        }
+
+        .logo:hover .logo-year {
+            color: var(--accent-hover);
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.25rem;
+        }
+
+        .logo-text {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-year {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            margin-left: 0.25rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.3s;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+        }
+
+        .nav-link:hover {
+            color: var(--accent-hover);
+            background-color: rgba(96, 165, 250, 0.15);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            color: white;
+            padding: 0.625rem 1.5rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 700;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(96, 165, 250, 0.5);
+            color: white;
+            background: linear-gradient(135deg, #7eb5ff 0%, #5fa5ff 100%);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--accent);
+            padding: 0.625rem 1.5rem;
+            border: 1.5px solid var(--accent);
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(96, 165, 250, 0.1);
+            transform: translateY(-2px);
+        }
+
+        /* Hero Section */
+        .hero {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            padding: 2rem;
+            padding-top: 80px;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(circle at 20% 50%, rgba(96, 165, 250, 0.06) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.04) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .hero-content {
+            max-width: 800px;
+            text-align: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            font-weight: 800;
+            margin-bottom: 1.5rem;
+            line-height: 1.1;
+            background: linear-gradient(135deg, #60a5fa 0%, #93c5fd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            margin-bottom: 2.5rem;
+            line-height: 1.6;
+            font-weight: 400;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: fadeInUp 0.8s ease-out 0.4s backwards;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* About Section */
+        .about-screen {
+            background:
+                radial-gradient(circle at 10% 20%, rgba(96, 165, 250, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 90% 80%, rgba(59, 130, 246, 0.04) 0%, transparent 50%);
+            padding: 80px 2rem 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .about-content {
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .about-screen h2 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            color: var(--text);
+            text-align: center;
+            width: 100%;
+        }
+
+        .about-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .about-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            border-radius: 12px;
+            padding: 2rem;
+            transition: all 0.3s;
+        }
+
+        .about-card:hover {
+            background: rgba(96, 165, 250, 0.1);
+            border-color: rgba(96, 165, 250, 0.4);
+            transform: translateY(-4px);
+        }
+
+        .about-card-icon {
+            font-size: 2.5rem;
+            color: var(--accent);
+            margin-bottom: 1rem;
+        }
+
+        .about-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: var(--text);
+        }
+
+        .about-card p {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        .about-tech {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .about-tech h3 {
+            color: var(--accent);
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .tech-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .tech-badge {
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            color: var(--accent-bright);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        .footer {
+            background-color: rgba(10, 12, 21, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 2rem 0;
+            margin-top: auto;
+            width: 100%;
+            scroll-snap-align: start;
+            min-height: auto;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            width: 100%;
+        }
+
+        .footer-links {
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .footer-link-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .footer-link-item a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .footer-link-item a:hover {
+            color: var(--accent);
+        }
+
+        .footer-divider {
+            color: rgba(255, 255, 255, 0.2);
+            font-weight: 300;
+        }
+
+        .footer-bottom {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        /* Scroll Indicator */
+        .scroll-indicator {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 30;
+            animation: bounce 2s infinite;
+        }
+
+        .scroll-indicator-down i {
+            color: rgba(160, 174, 192, 0.6);
+            font-size: 1.5rem;
+        }
+
+        .scroll-indicator-up {
+            bottom: auto;
+            top: auto;
+            right: 30px;
+            left: auto;
+            transform: none;
+            animation: none;
+            bottom: 60px;
+        }
+
+        .scroll-indicator-up button {
+            background: rgba(96, 165, 250, 0.15);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            color: var(--accent);
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1.25rem;
+        }
+
+        .scroll-indicator-up button:hover {
+            background: rgba(96, 165, 250, 0.3);
+            border-color: rgba(96, 165, 250, 0.6);
+            transform: translateY(-3px);
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(10px); }
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                padding: 1rem;
+            }
+
+            .nav-links {
+                gap: 1rem;
+            }
+
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .about-screen h2 {
+                font-size: 2rem;
+            }
+
+            .hero-buttons {
+                flex-direction: column;
+            }
+
+            .btn-primary, .btn-secondary {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .nav-link {
+                font-size: 0.85rem;
+            }
+
+            .about-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-links {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .footer-divider {
+                display: none;
+            }
+
+            .footer-link-item {
+                justify-content: center;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .nav-links {
+                gap: 0.5rem;
+            }
+
+            .btn-primary, .btn-secondary {
+                padding: 0.625rem 1rem !important;
+                font-size: 0.85rem !important;
+            }
+
+            .hero {
+                padding-top: 100px;
+            }
+
+            .logo-year {
+                display: none;
+            }
+        }
+
+        /* Why Us Section */
+        .why-us-screen {
+            background:
+                radial-gradient(circle at 0% 0%, rgba(96, 165, 250, 0.06) 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+            padding: 100px 2rem 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .why-us-content {
+            max-width: 1100px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .why-us-screen h2 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 3rem;
+            color: var(--text);
+            text-align: center;
+        }
+
+        .why-us-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .why-us-card {
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.08) 0%, rgba(59, 130, 246, 0.05) 100%);
+            border: 1px solid rgba(96, 165, 250, 0.25);
+            border-radius: 16px;
+            padding: 2.5rem 2rem;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .why-us-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .why-us-card:hover {
+            transform: translateY(-8px);
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.15) 0%, rgba(59, 130, 246, 0.1) 100%);
+            border-color: rgba(96, 165, 250, 0.4);
+            box-shadow: 0 12px 40px rgba(96, 165, 250, 0.15);
+        }
+
+        .why-us-card:hover::before {
+            left: 100%;
+        }
+
+        .why-us-icon {
+            font-size: 3rem;
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+            display: inline-block;
+            animation: floatIn 0.6s ease-out;
+        }
+
+        .why-us-card h3 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 1rem;
+        }
+
+        .why-us-card p {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        @keyframes floatIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .why-us-screen h2 {
+                font-size: 2rem;
+                margin-bottom: 2rem;
+            }
+
+            .why-us-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .why-us-card {
+                padding: 2rem 1.5rem;
+            }
+
+            .why-us-icon {
+                font-size: 2.5rem;
+            }
+        }
+
+        /* How it Works Section */
+        .how-it-works-screen {
+            background:
+                radial-gradient(circle at 50% 0%, rgba(96, 165, 250, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 0% 100%, rgba(59, 130, 246, 0.04) 0%, transparent 50%);
+            padding: 100px 2rem 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .how-it-works-content {
+            max-width: 900px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .how-it-works-screen h2 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 3rem;
+            color: var(--text);
+            text-align: center;
+        }
+
+        .steps-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .step {
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.08) 0%, rgba(59, 130, 246, 0.05) 100%);
+            border: 1px solid rgba(96, 165, 250, 0.25);
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .step:hover {
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.15) 0%, rgba(59, 130, 246, 0.1) 100%);
+            border-color: rgba(96, 165, 250, 0.4);
+            transform: translateX(10px);
+        }
+
+        .step-number {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+            height: 50px;
+            min-width: 50px;
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            border-radius: 50%;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: white;
+        }
+
+        .step-content h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 0.35rem;
+            text-align: left;
+        }
+
+        .step-content p {
+            color: var(--text-secondary);
+            line-height: 1.5;
+            text-align: left;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .how-it-works-screen h2 {
+                font-size: 2rem;
+                margin-bottom: 2rem;
+            }
+
+            .step {
+                flex-direction: column;
+                text-align: center;
+                gap: 1rem;
+            }
+
+            .step-content h3,
+            .step-content p {
+                text-align: center;
+            }
+
+            .step:hover {
+                transform: translateX(0);
+            }
+        }
+
+        /* CTA Section */
+        .cta-screen {
+            background:
+                radial-gradient(circle at 50% 50%, rgba(96, 165, 250, 0.08) 0%, transparent 60%);
+            padding: 100px 2rem 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .cta-content {
+            max-width: 600px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .cta-screen h2 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 0;
+            color: var(--text);
+            text-align: center;
+            letter-spacing: -1px;
+        }
+
+        .cta-screen p {
+            display: none;
+
+        .cta-features {
+            display: none;
+        }
+
+        .cta-feature {
+            display: none;
+        }
+
+        .cta-feature-icon {
+            display: none;
+        }
+
+        .cta-feature-text h3 {
+            display: none;
+        }
+
+        .cta-feature-text p {
+            display: none;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .cta-screen h2 {
+                font-size: 2rem;
+            }
+
+            .cta-feature {
+                gap: 1rem;
+            }
+
+            .cta-feature-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 1.25rem;
+            }
+
+            .cta-feature-text h3 {
+                font-size: 0.95rem;
+            }
+
+            .cta-feature-text p {
+                font-size: 0.85rem;
+            }
+        }
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <div class="logo-icon">
+                    <i class="fas fa-microphone"></i>
+                </div>
+                <span class="logo-text">Speech Coach<span class="logo-year">2025</span></span>
+            </a>
+            <nav class="nav-links">
+                <a href="#" class="nav-link">
+                    <i class="fas fa-book"></i>
+                    Документация
+                </a>
+                <a href="#" class="nav-link">
+                    <i class="fas fa-question-circle"></i>
+                    FAQ
+                </a>
+                <a href="/upload" class="btn-primary">
+                    <i class="fas fa-wand-magic-sparkles"></i>
+                    Анализ
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="scroll-container">
+        <!-- Screen 1: Hero -->
+        <section class="screen hero">
+            <div class="hero-content">
+                <h1>Улучшите вашу речь с AI</h1>
+                <p>Получайте детальный анализ публичных выступлений за 60 секунд. Множество параметров речи с персональными рекомендациями от AI-коуча.</p>
+                <div class="hero-buttons">
+                    <a href="/upload" class="btn-primary" style="padding: 0.875rem 2.5rem; font-size: 1rem;">
+                        <i class="fas fa-wand-magic-sparkles"></i>
+                        Начать анализ
+                    </a>
+                    <button class="btn-secondary" style="padding: 0.875rem 2.5rem; font-size: 1rem;" onclick="document.querySelector('.scroll-container').scrollBy({top: window.innerHeight, behavior: 'smooth'})">
+                        <i class="fas fa-chevron-down"></i>
+                        О нас
+                    </button>
+                </div>
+            </div>
+            <div class="scroll-indicator scroll-indicator-down">
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="scroll-indicator scroll-indicator-up" style="opacity: 0;">
+                <button onclick="document.querySelector('.scroll-container').scrollTo({top: 0, behavior: 'smooth'})">
+                    <i class="fas fa-chevron-up"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- Screen 2: About -->
+        <section class="screen about-screen">
+            <div class="about-content">
+                <h2>О Speech Coach</h2>
+
+                <div style="text-align: center; margin: 2rem 0;">
+                    <p style="font-size: 1.35rem; color: var(--text-secondary); line-height: 1.8;">
+                        <strong style="color: var(--text);">Speech Coach</strong> — сервис для анализа публичных выступлений по загружаемым видеофайлам.<br><br>
+                        Загрузите видео, и приложение извлечет аудио, выполнит распознавание речи, вычислит метрики качества и предоставит персональные рекомендации от AI-коуча.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Screen 3: Why Us -->
+        <section class="screen why-us-screen">
+            <div class="why-us-content">
+                <h2>Почему Speech Coach?</h2>
+
+                <div class="why-us-grid">
+                    <div class="why-us-card">
+                        <div class="why-us-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <h3>Детальный анализ</h3>
+                        <p>Анализируем темп, паузы, акценты и другие параметры вашей речи</p>
+                    </div>
+
+                    <div class="why-us-card">
+                        <div class="why-us-icon">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <h3>Быстро</h3>
+                        <p>Результаты будут готовы менее чем за минуту, в зависимости от вашего ПК</p>
+                    </div>
+
+                    <div class="why-us-card">
+                        <div class="why-us-icon">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <h3>Безопасно</h3>
+                        <p>Локальный анализ по умолчанию. Дополнительный AI-анализ доступен опционально при помощи GigaChat API</p>
+                    </div>
+
+                    <div class="why-us-card">
+                        <div class="why-us-icon">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <h3>AI-рекомендации</h3>
+                        <p>Получайте персональные рекомендации от AI для улучшения вашей речи</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Screen 4: How it Works -->
+        <section class="screen how-it-works-screen">
+            <div class="how-it-works-content">
+                <h2>Как это работает?</h2>
+
+                <div class="steps-container">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Загрузите видео</h3>
+                            <p>Выберите видеофайл с вашим выступлением. Поддерживаются все популярные форматы</p>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Извлечение аудио</h3>
+                            <p>Приложение автоматически извлекает аудиодорожку из видео</p>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>Анализ речи</h3>
+                            <p>AI анализирует темп, паузы, акценты и другие параметры вашей речи</p>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>Получите рекомендации</h3>
+                            <p>Получите персональные рекомендации от AI для улучшения вашей речи</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Screen 5: CTA -->
+        <section class="screen cta-screen">
+            <div class="cta-content">
+                <h2>Готовы начать?</h2>
+                <a href="/upload" class="btn-primary" style="margin-top: 3rem; padding: 1.3rem 3.5rem; font-size: 1.15rem;">
+                    <i class="fas fa-arrow-right"></i>
+                    <i class="fas fa-wand-magic-sparkles"></i>
+                    Try it out!
+                </a>
+            </div>
+        </section>
+
+        <!-- Footer inside scroll-container -->
+        <footer class="footer screen">
+            <div class="footer-content">
+                <div class="footer-links">
+                    <div class="footer-link-item">
+                        <a href="/">
+                            <i class="fas fa-home"></i>
+                            Главная
+                        </a>
+                    </div>
+                    <span class="footer-divider">•</span>
+                    <div class="footer-link-item">
+                        <a href="/upload">
+                            <i class="fas fa-wand-magic-sparkles"></i>
+                            Анализ
+                        </a>
+                    </div>
+                    <span class="footer-divider">•</span>
+                    <div class="footer-link-item">
+                        <a href="#">
+                            <i class="fas fa-book"></i>
+                            Документация
+                        </a>
+                    </div>
+                    <span class="footer-divider">•</span>
+                    <div class="footer-link-item">
+                        <a href="#">
+                            <i class="fas fa-question-circle"></i>
+                            FAQ
+                        </a>
+                    </div>
+                </div>
+                <div class="footer-bottom">
+                    <p>&copy; 2025 Speech Coach. Распространяется под лицензией MIT.</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Smooth scroll snap behavior for better UX
+        const scrollContainer = document.querySelector('.scroll-container');
+        let isScrolling = false;
+
+        scrollContainer.addEventListener('scroll', () => {
+            if (isScrolling) return;
+
+            const scrollTop = scrollContainer.scrollTop;
+            const screenHeight = window.innerHeight;
+            const scrollHeight = scrollContainer.scrollHeight;
+            const maxScroll = scrollHeight - screenHeight;
+
+            // Show down arrow only if not at bottom
+            const downIndicator = document.querySelector('.scroll-indicator-down');
+            if (downIndicator) {
+                downIndicator.style.opacity = scrollTop < maxScroll - 100 ? '1' : '0';
+            }
+
+            // Show up arrow only if not at top
+            const upIndicator = document.querySelector('.scroll-indicator-up');
+            if (upIndicator) {
+                upIndicator.style.opacity = scrollTop > 100 ? '1' : '0';
+            }
+        });
+
+        // Optional: Add keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowDown') {
+                scrollContainer.scrollBy({
+                    top: window.innerHeight,
+                    behavior: 'smooth'
+                });
+            } else if (e.key === 'ArrowUp') {
+                scrollContainer.scrollBy({
+                    top: -window.innerHeight,
+                    behavior: 'smooth'
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+

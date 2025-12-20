@@ -1,0 +1,1702 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Speech Coach - Результаты анализа речи">
+    <title>Результаты анализа - Speech Coach</title>
+    <link rel="icon" href="/favicon.ico">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0c15;
+            --bg-secondary: #101318;
+            --bg-tertiary: #151820;
+            --text: #e2e8f0;
+            --text-secondary: #a0aec0;
+            --accent: #60a5fa;
+            --accent-hover: #93c5fd;
+            --accent-bright: #00d4ff;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --info: #3b82f6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            background-color: var(--bg-primary);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            scroll-behavior: smooth;
+            line-height: 1.6;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            background-color: rgba(10, 12, 21, 0.95);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            position: fixed;
+            top: 0;
+            z-index: 50;
+            width: 100%;
+            height: 60px;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0.75rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+            color: var(--text);
+            transition: all 0.3s;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+        }
+
+        .logo:hover {
+            background-color: rgba(96, 165, 250, 0.15);
+            color: var(--accent-hover);
+        }
+
+        .logo:hover .logo-year {
+            color: var(--accent-hover);
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.25rem;
+        }
+
+        .logo-text {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-year {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            margin-left: 0.25rem;
+        }
+
+        .header-nav {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.3s;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+        }
+
+        .nav-link:hover {
+            color: var(--accent-hover);
+            background-color: rgba(96, 165, 250, 0.15);
+        }
+
+        .nav-link.active {
+            color: var(--accent);
+            background-color: rgba(96, 165, 250, 0.1);
+            border-bottom: 2px solid var(--accent);
+        }
+
+        /* Main container */
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            width: 100%;
+            margin-top: 60px;
+        }
+
+        /* Page header */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .page-title-section h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #60a5fa 0%, #93c5fd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-title-section p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.625rem 1.5rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            color: white;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(96, 165, 250, 0.5);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--accent);
+            border: 1.5px solid var(--accent);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(96, 165, 250, 0.1);
+            transform: translateY(-2px);
+        }
+
+        /* Cards */
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(96, 165, 250, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+
+        .card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(96, 165, 250, 0.2);
+        }
+
+        /* Tabs */
+        .tabs-container {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 1.5rem;
+            overflow-x: auto;
+            padding-bottom: 0;
+        }
+
+        .tab-button {
+            padding: 1rem 1.5rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            border-bottom: 2px solid transparent;
+            white-space: nowrap;
+        }
+
+        .tab-button:hover {
+            color: var(--accent-hover);
+            border-bottom-color: var(--accent-hover);
+        }
+
+        .tab-button.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Metrics grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(96, 165, 250, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .metric-card.highlight {
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.15) 0%, rgba(59, 130, 246, 0.1) 100%);
+            border-color: rgba(96, 165, 250, 0.3);
+        }
+
+        .metric-label {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--text);
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .metric-unit {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .metric-change {
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .metric-change.positive {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .metric-change.negative {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        .metric-change.warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+
+        /* Video section */
+        .video-container {
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+
+        .video-player {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            display: block;
+        }
+
+        /* Transcript section */
+        .transcript-container {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.8;
+            font-size: 1.05rem;
+        }
+
+        .transcript-word {
+            display: inline;
+            padding: 0.15rem 0.3rem;
+            margin: 0 0.1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            font-weight: 500;
+        }
+
+        .transcript-word:hover {
+            transform: scale(1.08);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .transcript-word:focus {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        .transcript-word.filler {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            font-weight: 600;
+        }
+
+        .transcript-word.filler:hover {
+            background: rgba(245, 158, 11, 0.25);
+        }
+
+        .transcript-word.emphasis {
+            background: rgba(16, 185, 129, 0.15);
+            color: #6ee7b7;
+            font-weight: 600;
+        }
+
+        .transcript-word.emphasis:hover {
+            background: rgba(16, 185, 129, 0.25);
+        }
+
+        .transcript-word.problem {
+            background: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            font-weight: 600;
+        }
+
+        .transcript-word.problem:hover {
+            background: rgba(239, 68, 68, 0.25);
+        }
+
+        .word-tooltip {
+            position: absolute;
+            bottom: 120%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, rgba(10, 12, 21, 0.98), rgba(15, 23, 32, 0.98));
+            color: var(--text);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            opacity: 0;
+            visibility: hidden;
+            z-index: 100;
+            transition: all 0.2s ease;
+            pointer-events: none;
+            max-width: 200px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            word-wrap: break-word;
+            white-space: normal;
+        }
+
+        .transcript-word:hover .word-tooltip {
+            opacity: 1;
+            visibility: visible;
+            bottom: 110%;
+        }
+
+        /* Timeline */
+        .timeline-container {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .timeline-bar {
+            position: relative;
+            height: 40px;
+            background: linear-gradient(90deg, rgba(96, 165, 250, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+            cursor: pointer;
+        }
+
+        .timeline-segment {
+            position: absolute;
+            height: 100%;
+            opacity: 0.3;
+            transition: opacity 0.2s;
+        }
+
+        .timeline-segment:hover {
+            opacity: 0.6;
+        }
+
+        .timeline-segment.filler {
+            background: linear-gradient(90deg, rgba(245, 158, 11, 0.6), rgba(245, 158, 11, 0.2));
+        }
+
+        .timeline-segment.emphasis {
+            background: linear-gradient(90deg, rgba(16, 185, 129, 0.6), rgba(16, 185, 129, 0.2));
+        }
+
+        .timeline-segment.problem {
+            background: linear-gradient(90deg, rgba(239, 68, 68, 0.6), rgba(239, 68, 68, 0.2));
+        }
+
+        .timeline-marker {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid var(--bg-primary);
+            transition: all 0.2s;
+        }
+
+        .timeline-marker:hover {
+            transform: translate(-50%, -50%) scale(1.5);
+        }
+
+        .timeline-marker.filler {
+            background: var(--warning);
+        }
+
+        .timeline-marker.emphasis {
+            background: var(--success);
+        }
+
+        .timeline-marker.problem {
+            background: var(--danger);
+        }
+
+        .timeline-labels {
+            display: flex;
+            justify-content: space-between;
+            padding: 0 1rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* Charts section */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(96, 165, 250, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .chart-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--text);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Recommendations section */
+        .recommendations-section {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .recommendation-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 4px solid var(--accent);
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: all 0.3s;
+        }
+
+        .recommendation-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateX(4px);
+        }
+
+        .recommendation-item.priority-high {
+            border-left-color: var(--danger);
+        }
+
+        .recommendation-item.priority-medium {
+            border-left-color: var(--warning);
+        }
+
+        .recommendation-item.priority-low {
+            border-left-color: var(--success);
+        }
+
+        .recommendation-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .recommendation-priority {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .recommendation-priority.high {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+
+        .recommendation-priority.medium {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+        }
+
+        .recommendation-priority.low {
+            background: rgba(16, 185, 129, 0.2);
+            color: #6ee7b7;
+        }
+
+        .recommendation-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .recommendation-description {
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+        }
+
+        .recommendation-action {
+            background: rgba(96, 165, 250, 0.1);
+            border-left: 2px solid var(--accent);
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            color: var(--accent-bright);
+        }
+
+        /* Chat section */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-height: 500px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .chat-message {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .chat-message.user {
+            justify-content: flex-end;
+        }
+
+        .chat-message.assistant {
+            justify-content: flex-start;
+        }
+
+        .chat-bubble {
+            max-width: 70%;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .chat-bubble.user {
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            color: white;
+        }
+
+        .chat-bubble.assistant {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            color: var(--text);
+        }
+
+        .chat-input-group {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .chat-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            color: var(--text);
+            font-size: 0.95rem;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .chat-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        /* Badges and indicators */
+        .badge {
+            display: inline-block;
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .badge-primary {
+            background: rgba(96, 165, 250, 0.2);
+            color: var(--accent-bright);
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .badge-danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        /* Loading animation */
+        .loading {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 1rem;
+            }
+
+            .page-title-section h1 {
+                font-size: 1.8rem;
+            }
+
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tabs-container {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .chat-bubble {
+                max-width: 90%;
+            }
+
+            .page-header {
+                flex-direction: column;
+            }
+
+            .action-buttons {
+                width: 100%;
+            }
+
+            .action-buttons .btn {
+                flex: 1;
+                justify-content: center;
+            }
+        }
+
+        /* Scroll bar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(96, 165, 250, 0.3);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(96, 165, 250, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <div class="logo-icon"><i class="fas fa-microphone"></i></div>
+                <div class="logo-text">Speech Coach <span class="logo-year">2025</span></div>
+            </a>
+            <nav class="header-nav">
+                <a href="/" class="nav-link"><i class="fas fa-home"></i> Главная</a>
+                <a href="/upload" class="nav-link"><i class="fas fa-upload"></i> Загрузить</a>
+                <a href="#" class="nav-link active"><i class="fas fa-chart-line"></i> Результаты</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="page-title-section">
+                <h1>Результаты анализа речи</h1>
+                <p>Детальный отчет с рекомендациями и интерактивными инструментами</p>
+            </div>
+            <div class="action-buttons">
+                <button class="btn btn-primary" id="downloadBtn">
+                    <i class="fas fa-download"></i> Скачать отчет
+                </button>
+                <button class="btn btn-secondary" id="shareBtn">
+                    <i class="fas fa-share-alt"></i> Поделиться
+                </button>
+            </div>
+        </div>
+
+        <!-- Metrics Dashboard -->
+        <div class="metrics-grid" id="metricsGrid">
+            <div class="metric-card highlight">
+                <div class="metric-label"><i class="fas fa-clock"></i> Длительность</div>
+                <div class="metric-value"><span id="duration">—</span><span class="metric-unit">мин</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label"><i class="fas fa-tachometer-alt"></i> Скорость речи</div>
+                <div class="metric-value"><span id="wpm">—</span><span class="metric-unit">слов/мин</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label"><i class="fas fa-volume-mute"></i> Паразиты</div>
+                <div class="metric-value"><span id="fillers">—</span><span class="metric-unit">шт</span></div>
+                <div class="metric-change warning"><i class="fas fa-arrow-up"></i> Высокая плотность</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label"><i class="fas fa-exclamation-triangle"></i> Проблемные места</div>
+                <div class="metric-value"><span id="problems">—</span><span class="metric-unit">шт</span></div>
+                <div class="metric-change negative"><i class="fas fa-arrow-up"></i> Требует внимания</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label"><i class="fas fa-star"></i> Выделения</div>
+                <div class="metric-value"><span id="emphases">—</span><span class="metric-unit">шт</span></div>
+                <div class="metric-change positive"><i class="fas fa-arrow-up"></i> Хорошая динамика</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label"><i class="fas fa-percent"></i> Оценка качества</div>
+                <div class="metric-value"><span id="score">—</span><span class="metric-unit">%</span></div>
+                <div class="metric-change positive"><i class="fas fa-check-circle"></i> Выше среднего</div>
+            </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div class="tabs-container">
+            <button class="tab-button active" data-tab="overview">
+                <i class="fas fa-eye"></i> Обзор
+            </button>
+            <button class="tab-button" data-tab="analytics">
+                <i class="fas fa-chart-bar"></i> Аналитика
+            </button>
+            <button class="tab-button" data-tab="recommendations">
+                <i class="fas fa-lightbulb"></i> Рекомендации
+            </button>
+            <button class="tab-button" data-tab="chat">
+                <i class="fas fa-comments"></i> Консультант AI
+            </button>
+        </div>
+
+        <!-- Tab: Overview -->
+        <div class="tab-content active" id="tab-overview">
+            <div class="video-container">
+                <video id="videoPlayer" class="video-player" controls preload="metadata"></video>
+            </div>
+
+            <!-- Transcript Section in Overview -->
+            <div class="card" style="margin-top: 1.5rem;">
+                <h3 style="font-size: 1.2rem; margin-bottom: 1rem; color: var(--text);">
+                    <i class="fas fa-align-left"></i> Интерактивный транскрипт
+                </h3>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                    💡 Нажмите на слово, чтобы перейти к нему в видео
+                </p>
+                <div class="transcript-container" id="transcriptContainer">
+                    Загрузка транскрипта...
+                </div>
+            </div>
+
+            <!-- Timeline Section in Overview -->
+            <div class="timeline-container">
+                <h3 style="font-size: 1.1rem; margin-bottom: 1rem; color: var(--text);">
+                    <i class="fas fa-stream"></i> Временная шкала
+                </h3>
+                <div class="timeline-bar" id="timelineBar"></div>
+                <div class="timeline-labels">
+                    <span id="timelineStart">00:00</span>
+                    <span id="timelineEnd">00:00</span>
+                </div>
+                <div style="margin-top: 1rem; padding: 1rem; background: rgba(96, 165, 250, 0.05); border-radius: 8px; border-left: 3px solid var(--accent);">
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.9rem;">
+                        <div><i class="fas fa-square" style="color: var(--warning)"></i> <span style="margin-left: 0.5rem;">Паразиты слова</span></div>
+                        <div><i class="fas fa-square" style="color: var(--success)"></i> <span style="margin-left: 0.5rem;">Выделения</span></div>
+                        <div><i class="fas fa-square" style="color: var(--danger)"></i> <span style="margin-left: 0.5rem;">Проблемные места</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Section in Overview -->
+            <div class="card" style="margin-top: 1.5rem;">
+                <h3 style="font-size: 1.2rem; margin-bottom: 1rem; color: var(--text);">
+                    <i class="fas fa-info-circle"></i> Резюме анализа
+                </h3>
+                <div id="summaryContent" style="line-height: 1.8; color: var(--text-secondary);">
+                    Загрузка данных анализа...
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- Tab: Analytics -->
+        <div class="tab-content" id="tab-analytics">
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <div class="chart-title"><i class="fas fa-bar-chart"></i> Распределение проблем</div>
+                    <div class="chart-container"><canvas id="problemsChart"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title"><i class="fas fa-pie-chart"></i> Структура анализа</div>
+                    <div class="chart-container"><canvas id="structureChart"></canvas></div>
+                </div>
+            </div>
+            <div class="charts-grid">
+                <div class="chart-card" style="grid-column: 1 / -1;">
+                    <div class="chart-title"><i class="fas fa-line-chart"></i> Временное распределение</div>
+                    <div class="chart-container" style="height: 350px;"><canvas id="timelineChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Recommendations -->
+        <div class="tab-content" id="tab-recommendations">
+            <div class="recommendations-section" id="recommendationsContainer">
+                <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                    <i class="fas fa-spinner fa-spin"></i> Загрузка рекомендаций...
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Chat -->
+        <div class="tab-content" id="tab-chat">
+            <div class="card">
+                <h3 style="font-size: 1.2rem; margin-bottom: 1.5rem; color: var(--text);">
+                    <i class="fas fa-robot"></i> Консультант AI
+                </h3>
+                <div class="chat-container">
+                    <div class="chat-messages" id="chatMessages"></div>
+                    <div class="chat-input-group">
+                        <input
+                            type="text"
+                            class="chat-input"
+                            id="chatInput"
+                            placeholder="Задайте вопрос об анализе вашей речи..."
+                            autocomplete="off"
+                        />
+                        <button class="btn btn-primary" id="sendChatBtn" style="flex-shrink: 0;">
+                            <i class="fas fa-paper-plane"></i> Отправить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // ============ UTILITY FUNCTIONS ============
+        function escapeHtml(text) {
+            if (!text) return '';
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+
+        function formatTime(seconds) {
+            if (!seconds) return '00:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function calculateScore(data) {
+            if (!data) return 0;
+            let score = 100;
+            const fillers = (data.timeline?.fillers?.length || 0) + (data.filler_words?.total || 0);
+            const problems = data.timeline?.suspicious_moments?.length || 0;
+            score -= Math.min(30, fillers * 2);
+            score -= Math.min(30, problems * 5);
+            return Math.max(0, Math.min(100, score));
+        }
+
+        // Simple Markdown parser for chat
+        function parseMarkdown(text) {
+            if (!text) return '';
+            
+            // Escape HTML first
+            let html = escapeHtml(text);
+            
+            // Bold: **text** or __text__
+            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+            
+            // Italic: *text* or _text_
+            html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+            
+            // Code: `text`
+            html = html.replace(/`([^`]+)`/g, '<code style="background: rgba(96,165,250,0.1); padding: 0.2rem 0.4rem; border-radius: 3px; color: var(--accent); font-family: monospace;">$1</code>');
+            
+            // Headers: # text
+            html = html.replace(/^### ([^\n]+)/gm, '<h5 style="font-weight: 700; margin-top: 0.5rem;">$1</h5>');
+            html = html.replace(/^## ([^\n]+)/gm, '<h4 style="font-weight: 700; margin-top: 0.5rem;">$1</h4>');
+            html = html.replace(/^# ([^\n]+)/gm, '<h3 style="font-weight: 700; margin-top: 0.5rem;">$1</h3>');
+            
+            // Line breaks
+            html = html.replace(/\n/g, '<br>');
+            
+            // Lists: - item
+            html = html.replace(/- ([^\n<]+)/g, '<li style="margin-left: 1.5rem;">$1</li>');
+            html = html.replace(/(<li[^>]*>.*<\/li>)/s, '<ul style="margin: 0.5rem 0;">$1</ul>');
+            
+            return html;
+        }
+
+        // ============ DATA LOADING ============
+        let analysisData = null;
+
+        function loadAnalysisData() {
+            try {
+                const stored = localStorage.getItem('lastAnalysisResult');
+                if (stored) {
+                    analysisData = JSON.parse(stored);
+                    return analysisData;
+                }
+            } catch (e) {
+                console.error('Failed to load analysis data:', e);
+            }
+            return null;
+        }
+
+        // ============ RENDER FUNCTIONS ============
+        function renderMetrics() {
+            if (!analysisData) return;
+
+            const duration = analysisData.duration_sec || 0;
+            const wpm = analysisData.words_per_minute || analysisData.wpm || 0;
+            const fillers = (analysisData.timeline?.fillers?.length || 0) + (analysisData.filler_words?.total || 0);
+            const problems = analysisData.timeline?.suspicious_moments?.length || 0;
+            const emphases = analysisData.timeline?.emphases?.length || 0;
+            const score = calculateScore(analysisData);
+
+            document.getElementById('duration').textContent = Math.round(duration / 60);
+            document.getElementById('wpm').textContent = Math.round(wpm);
+            document.getElementById('fillers').textContent = fillers;
+            document.getElementById('problems').textContent = problems;
+            document.getElementById('emphases').textContent = emphases;
+            document.getElementById('score').textContent = Math.round(score);
+        }
+
+        function renderTranscript() {
+            const container = document.getElementById('transcriptContainer');
+            if (!analysisData) {
+                container.innerHTML = '<p style="color: var(--text-secondary);">Транскрипт недоступен</p>';
+                return;
+            }
+
+            // Use timeline words if available, otherwise fallback to transcript
+            let words = [];
+            if (analysisData.timeline?.words && Array.isArray(analysisData.timeline.words)) {
+                words = analysisData.timeline.words;
+            } else if (analysisData.transcript) {
+                // Fallback: split transcript into words
+                const textWords = analysisData.transcript.split(/\s+/).filter(Boolean);
+                const duration = analysisData.duration_sec || 60;
+                const avgWordDuration = duration / Math.max(textWords.length, 1);
+                words = textWords.map((w, i) => ({
+                    text: w,
+                    word: w,
+                    start: i * avgWordDuration,
+                    end: (i + 1) * avgWordDuration
+                }));
+            }
+
+            if (!words.length) {
+                container.innerHTML = '<p style="color: var(--text-secondary);">Нет данных транскрипта</p>';
+                return;
+            }
+
+            // Build maps by timestamp for faster lookup
+            const fillerByTime = new Map();
+            const emphasisByTime = new Map();
+            const problemByTime = new Map();
+
+            (analysisData.timeline?.fillers || []).forEach(f => {
+                const ts = Number(f.timestamp || f.start || 0);
+                fillerByTime.set(ts.toFixed(2), f);
+            });
+
+            (analysisData.timeline?.emphases || []).forEach(e => {
+                const ts = Number(e.timestamp || e.start || 0);
+                emphasisByTime.set(ts.toFixed(2), e);
+            });
+
+            (analysisData.timeline?.suspicious_moments || []).forEach(p => {
+                const ts = Number(p.timestamp || p.start || 0);
+                problemByTime.set(ts.toFixed(2), p);
+            });
+
+            // Render words
+            container.innerHTML = words.map((word, idx) => {
+                const wordText = word.word || word.text || '';
+                const startTime = Number(word.start || 0);
+                const startTimeFixed = startTime.toFixed(2);
+
+                let className = 'transcript-word';
+                let tooltipContent = '';
+                let type = 'normal';
+
+                // Check for filler
+                if (fillerByTime.has(startTimeFixed)) {
+                    const filler = fillerByTime.get(startTimeFixed);
+                    className += ' filler';
+                    type = 'filler';
+                    tooltipContent = `<strong style="color: var(--warning);">Паразит</strong>`;
+                    if (filler.suggestions && filler.suggestions.length) {
+                        tooltipContent += `<div style="margin-top: 6px; font-size: 0.85rem;"><strong>Советы:</strong><ul style="margin: 4px 0 0 1rem; padding: 0;">` +
+                            filler.suggestions.map(s => `<li>${escapeHtml(String(s))}</li>`).join('') +
+                            `</ul></div>`;
+                    }
+                    if (filler.severity) {
+                        tooltipContent += `<div style="margin-top: 4px; font-size: 0.8rem; color: var(--text-secondary);">Серьезность: ${filler.severity}</div>`;
+                    }
+                }
+                // Check for emphasis
+                else if (emphasisByTime.has(startTimeFixed)) {
+                    const emphasis = emphasisByTime.get(startTimeFixed);
+                    className += ' emphasis';
+                    type = 'emphasis';
+                    tooltipContent = `<strong style="color: var(--success);">Выделение</strong>`;
+                    if (emphasis.description) {
+                        tooltipContent += `<div style="margin-top: 6px; font-size: 0.9rem;">${escapeHtml(emphasis.description)}</div>`;
+                    }
+                    if (emphasis.type) {
+                        tooltipContent += `<div style="margin-top: 4px; font-size: 0.8rem; color: var(--text-secondary);">Тип: ${escapeHtml(emphasis.type)}</div>`;
+                    }
+                    if (emphasis.suggestion) {
+                        tooltipContent += `<div style="margin-top: 4px; font-size: 0.85rem;"><strong>Совет:</strong> ${escapeHtml(emphasis.suggestion)}</div>`;
+                    }
+                }
+                // Check for problem
+                else if (problemByTime.has(startTimeFixed)) {
+                    const problem = problemByTime.get(startTimeFixed);
+                    className += ' problem';
+                    type = 'problem';
+                    tooltipContent = `<strong style="color: var(--danger);">Проблема</strong>`;
+                    if (problem.description) {
+                        tooltipContent += `<div style="margin-top: 6px; font-size: 0.9rem;">${escapeHtml(problem.description)}</div>`;
+                    }
+                    if (problem.type) {
+                        tooltipContent += `<div style="margin-top: 4px; font-size: 0.8rem; color: var(--text-secondary);">Тип: ${escapeHtml(problem.type)}</div>`;
+                    }
+                    if (problem.suggestion) {
+                        tooltipContent += `<div style="margin-top: 4px; font-size: 0.85rem;"><strong>Совет:</strong> ${escapeHtml(problem.suggestion)}</div>`;
+                    }
+                }
+
+                return `<span class="${className}" data-idx="${idx}" data-type="${type}" data-start="${startTime}" onclick="seekVideo(${startTime})" role="button" tabindex="0" style="cursor: pointer; user-select: none;">
+                    ${escapeHtml(wordText)}
+                    ${tooltipContent ? `<span class="word-tooltip">${tooltipContent}</span>` : ''}
+                </span>`;
+            }).join(' ');
+
+            // Sync video time with transcript highlighting
+            const video = document.getElementById('videoPlayer');
+            if (video) {
+                video.addEventListener('timeupdate', () => {
+                    const currentTime = video.currentTime;
+                    document.querySelectorAll('.transcript-word').forEach(w => {
+                        const wordStart = parseFloat(w.getAttribute('data-start'));
+                        const wordEnd = wordStart + 0.5; // approximate word duration
+                        if (currentTime >= wordStart && currentTime < wordEnd) {
+                            w.style.background = 'rgba(96, 165, 250, 0.3)';
+                            w.style.transform = 'scale(1.05)';
+                        } else {
+                            w.style.background = '';
+                            w.style.transform = '';
+                        }
+                    });
+                });
+            }
+        }
+
+        function renderTimeline() {
+            const bar = document.getElementById('timelineBar');
+            if (!analysisData) return;
+
+            const duration = analysisData.duration_sec || 60;
+            bar.innerHTML = '';
+
+            // Add segments
+            (analysisData.timeline?.fillers || []).forEach(f => {
+                const start = Number(f.timestamp || f.start || 0);
+                const end = start + (Number(f.duration || 0.5));
+                const left = (start / duration) * 100;
+                const width = ((end - start) / duration) * 100;
+                const seg = document.createElement('div');
+                seg.className = 'timeline-segment filler';
+                seg.style.left = left + '%';
+                seg.style.width = width + '%';
+                bar.appendChild(seg);
+            });
+
+            (analysisData.timeline?.emphases || []).forEach(e => {
+                const start = Number(e.timestamp || e.start || 0);
+                const end = start + 0.3;
+                const left = (start / duration) * 100;
+                const width = Math.max(1, ((end - start) / duration) * 100);
+                const seg = document.createElement('div');
+                seg.className = 'timeline-segment emphasis';
+                seg.style.left = left + '%';
+                seg.style.width = width + '%';
+                bar.appendChild(seg);
+            });
+
+            (analysisData.timeline?.suspicious_moments || []).forEach(p => {
+                const start = Number(p.timestamp || p.start || 0);
+                const end = start + 0.3;
+                const left = (start / duration) * 100;
+                const width = Math.max(1, ((end - start) / duration) * 100);
+                const seg = document.createElement('div');
+                seg.className = 'timeline-segment problem';
+                seg.style.left = left + '%';
+                seg.style.width = width + '%';
+                bar.appendChild(seg);
+            });
+
+            document.getElementById('timelineStart').textContent = formatTime(0);
+            document.getElementById('timelineEnd').textContent = formatTime(duration);
+        }
+
+        function renderCharts() {
+            if (!analysisData) return;
+
+            const fillers = analysisData.timeline?.fillers?.length || 0;
+            const emphases = analysisData.timeline?.emphases?.length || 0;
+            const problems = analysisData.timeline?.suspicious_moments?.length || 0;
+            const duration = analysisData.duration_sec || 60;
+
+            // Problems chart
+            const problemsCtx = document.getElementById('problemsChart');
+            if (problemsCtx) {
+                new Chart(problemsCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Паразиты', 'Выделения', 'Проблемы'],
+                        datasets: [{
+                            label: 'Количество',
+                            data: [fillers, emphases, problems],
+                            backgroundColor: ['#f59e0b', '#10b981', '#ef4444'],
+                            borderRadius: 6,
+                            borderSkipped: false,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, ticks: { color: '#a0aec0' } },
+                            x: { ticks: { color: '#a0aec0' } }
+                        }
+                    }
+                });
+            }
+
+            // Structure chart
+            const structureCtx = document.getElementById('structureChart');
+            if (structureCtx) {
+                new Chart(structureCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Паразиты', 'Выделения', 'Проблемы', 'Нормальные'],
+                        datasets: [{
+                            data: [fillers, emphases, problems, Math.max(0, 100 - fillers - emphases - problems)],
+                            backgroundColor: ['#f59e0b', '#10b981', '#ef4444', '#60a5fa'],
+                            borderColor: '#0a0c15',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { color: '#a0aec0' }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Timeline chart
+            const timelineCtx = document.getElementById('timelineChart');
+            if (timelineCtx) {
+                const bucketCount = 20;
+                const bucketSize = duration / bucketCount;
+                const buckets = Array(bucketCount).fill(0);
+
+                (analysisData.timeline?.fillers || []).forEach(f => {
+                    const t = Number(f.timestamp || f.start || 0);
+                    const idx = Math.min(bucketCount - 1, Math.floor(t / bucketSize));
+                    if (idx >= 0) buckets[idx]++;
+                });
+
+                new Chart(timelineCtx, {
+                    type: 'line',
+                    data: {
+                        labels: Array.from({length: bucketCount}, (_, i) => formatTime(i * bucketSize)),
+                        datasets: [{
+                            label: 'Плотность проблем',
+                            data: buckets,
+                            borderColor: '#60a5fa',
+                            backgroundColor: 'rgba(96, 165, 250, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: '#60a5fa',
+                            pointBorderColor: '#0a0c15',
+                            pointBorderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { labels: { color: '#a0aec0' } }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, ticks: { color: '#a0aec0' } },
+                            x: { ticks: { color: '#a0aec0' } }
+                        }
+                    }
+                });
+            }
+        }
+
+        function renderRecommendations() {
+            const container = document.getElementById('recommendationsContainer');
+            const recommendations = [];
+
+            if (!analysisData) {
+                container.innerHTML = '<p style="color: var(--text-secondary);">Рекомендации недоступны</p>';
+                return;
+            }
+
+            // Parse advice from backend
+            if (analysisData.advice && Array.isArray(analysisData.advice)) {
+                recommendations.push(...analysisData.advice);
+            }
+
+            // Add auto-generated recommendations based on metrics
+            const fillers = (analysisData.timeline?.fillers?.length || 0) + (analysisData.filler_words?.total || 0);
+            const problems = analysisData.timeline?.suspicious_moments?.length || 0;
+
+            if (fillers > 10) {
+                recommendations.push({
+                    title: 'Снизьте использование паразитов',
+                    description: 'Обнаружено высокое количество паразитных слов.',
+                    action: 'Практикуйте паузы вместо "ээ", "ухм" и похожих звуков.',
+                    priority: 'high'
+                });
+            }
+
+            if (problems > 5) {
+                recommendations.push({
+                    title: 'Обратите внимание на проблемные места',
+                    description: 'Найдены участки, требующие совершенствования.',
+                    action: 'Пересмотрите видео и отработайте эти моменты.',
+                    priority: 'high'
+                });
+            }
+
+            if (analysisData.timeline?.emphases?.length > 0) {
+                recommendations.push({
+                    title: 'Хорошие выделения и акценты',
+                    description: 'Ваша речь содержит хорошие интонационные выделения.',
+                    action: 'Продолжайте использовать естественные паузы и интонацию.',
+                    priority: 'low'
+                });
+            }
+
+            container.innerHTML = recommendations.map(r => `
+                <div class="recommendation-item priority-${r.priority || 'medium'}">
+                    <div class="recommendation-header">
+                        <span class="recommendation-priority ${r.priority || 'medium'}">
+                            ${r.priority === 'high' ? 'ВЫСОКИЙ' : r.priority === 'low' ? 'НИЗКИЙ' : 'СРЕДНИЙ'}
+                        </span>
+                    </div>
+                    <div class="recommendation-title">${escapeHtml(r.title || '')}</div>
+                    <div class="recommendation-description">${escapeHtml(r.description || r.observation || '')}</div>
+                    <div class="recommendation-action">
+                        <i class="fas fa-lightbulb"></i> ${escapeHtml(r.action || r.recommendation || r.advice || '')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderSummary() {
+            const container = document.getElementById('summaryContent');
+            if (!analysisData) {
+                container.innerHTML = '<p>Данные анализа недоступны</p>';
+                return;
+            }
+
+            const score = calculateScore(analysisData);
+            const verdict = score >= 80 ? 'Отличная работа!' : score >= 60 ? 'Хороший результат' : 'Требуется улучшение';
+
+            let html = `
+                <p><strong>Общая оценка:</strong> ${verdict}</p>
+                <p><strong>Длительность речи:</strong> ${formatTime(analysisData.duration_sec || 0)}</p>
+                <p><strong>Скорость речи:</strong> ${Math.round(analysisData.words_per_minute || 0)} слов в минуту</p>
+                <p><strong>Основные находки:</strong></p>
+                <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                    <li>Паразитных слов: ${(analysisData.timeline?.fillers?.length || 0) + (analysisData.filler_words?.total || 0)}</li>
+                    <li>Выделений и акцентов: ${analysisData.timeline?.emphases?.length || 0}</li>
+                    <li>Проблемных мест: ${analysisData.timeline?.suspicious_moments?.length || 0}</li>
+                </ul>
+            `;
+
+            // Add GigaChat analysis if available
+            if (analysisData.gigachat_analysis) {
+                html += `<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <h4 style="color: var(--accent); margin-bottom: 0.75rem;"><i class="fas fa-robot"></i> Анализ GigaChat</h4>`;
+
+                const gc = analysisData.gigachat_analysis;
+
+                if (gc.overall_assessment) {
+                    html += `<p><strong>Общая оценка:</strong> ${escapeHtml(String(gc.overall_assessment))}</p>`;
+                }
+
+                if (gc.strengths && (Array.isArray(gc.strengths) ? gc.strengths.length : Object.keys(gc.strengths).length > 0)) {
+                    html += `<p><strong>Сильные стороны:</strong></p><ul style="margin-left: 1.5rem;">`;
+                    const strengthList = Array.isArray(gc.strengths) ? gc.strengths : Object.values(gc.strengths);
+                    strengthList.forEach(s => {
+                        html += `<li>${escapeHtml(String(s))}</li>`;
+                    });
+                    html += `</ul>`;
+                }
+
+                if (gc.areas_for_improvement && (Array.isArray(gc.areas_for_improvement) ? gc.areas_for_improvement.length : Object.keys(gc.areas_for_improvement).length > 0)) {
+                    html += `<p><strong>Области для улучшения:</strong></p><ul style="margin-left: 1.5rem;">`;
+                    const improvementList = Array.isArray(gc.areas_for_improvement) ? gc.areas_for_improvement : Object.values(gc.areas_for_improvement);
+                    improvementList.forEach(i => {
+                        html += `<li>${escapeHtml(String(i))}</li>`;
+                    });
+                    html += `</ul>`;
+                }
+
+                html += `</div>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // ============ EVENT HANDLERS ============
+        function seekVideo(time) {
+            const video = document.getElementById('videoPlayer');
+            if (video) {
+                video.currentTime = time;
+                video.play();
+            }
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+                btn.classList.add('active');
+                const tabId = 'tab-' + btn.dataset.tab;
+                document.getElementById(tabId).classList.add('active');
+
+                // Re-render charts on analytics tab
+                if (btn.dataset.tab === 'analytics') {
+                    setTimeout(() => renderCharts(), 100);
+                }
+            });
+        });
+
+        // Chat functionality
+        document.getElementById('sendChatBtn')?.addEventListener('click', sendMessage);
+        document.getElementById('chatInput')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const msg = input.value.trim();
+            if (!msg) return;
+
+            const messages = document.getElementById('chatMessages');
+            const userMsg = document.createElement('div');
+            userMsg.className = 'chat-message user';
+            userMsg.innerHTML = `<div class="chat-bubble user">${escapeHtml(msg)}</div>`;
+            messages.appendChild(userMsg);
+            input.value = '';
+            messages.scrollTop = messages.scrollHeight;
+
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: msg,
+                        analysis_context: analysisData
+                    })
+                });
+
+                const data = await res.json();
+                const reply = data.response || data.answer || data.text || 'Ошибка ответа';
+
+                const botMsg = document.createElement('div');
+                botMsg.className = 'chat-message assistant';
+                botMsg.innerHTML = `<div class="chat-bubble assistant">${parseMarkdown(String(reply))}</div>`;
+                messages.appendChild(botMsg);
+                messages.scrollTop = messages.scrollHeight;
+            } catch (e) {
+                console.error('Chat error:', e);
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'chat-message assistant';
+                errorMsg.innerHTML = `<div class="chat-bubble assistant" style="color: #fca5a5;">Ошибка подключения</div>`;
+                messages.appendChild(errorMsg);
+                messages.scrollTop = messages.scrollHeight;
+            }
+        }
+
+        // Download functionality
+        document.getElementById('downloadBtn')?.addEventListener('click', () => {
+            if (!analysisData) return;
+            const blob = new Blob([JSON.stringify(analysisData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `analysis_${analysisData.analysis_id || 'report'}.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        });
+
+        // Share functionality
+        document.getElementById('shareBtn')?.addEventListener('click', async () => {
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: 'Результаты анализа речи',
+                        text: 'Посмотрите мой анализ речи на Speech Coach',
+                        url: window.location.href
+                    });
+                } catch (e) {
+                    console.error('Share error:', e);
+                }
+            } else {
+                alert('Ссылка скопирована: ' + window.location.href);
+            }
+        });
+
+        // ============ INITIALIZATION ============
+        document.addEventListener('DOMContentLoaded', () => {
+            analysisData = loadAnalysisData();
+
+            if (!analysisData) {
+                document.body.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: center; height: 100vh; color: var(--text-secondary); text-align: center;">
+                        <div>
+                            <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                            <p>Нет данных анализа</p>
+                            <a href="/upload" style="color: var(--accent); text-decoration: none; margin-top: 1rem;">Загрузить видео</a>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Set video source if available
+            const video = document.getElementById('videoPlayer');
+            if (analysisData.video_blob_url) {
+                video.src = analysisData.video_blob_url;
+            } else if (analysisData.video_path) {
+                video.src = analysisData.video_path;
+            }
+
+            // Render all sections
+            renderMetrics();
+            renderSummary();
+            renderTranscript();
+            renderTimeline();
+            renderRecommendations();
+            renderCharts();
+
+            // Add welcome message to chat
+            const chatMessages = document.getElementById('chatMessages');
+            const welcomeMsg = document.createElement('div');
+            welcomeMsg.className = 'chat-message assistant';
+            welcomeMsg.innerHTML = `
+                <div class="chat-bubble assistant">
+                    Привет! Я ваш консультант по улучшению речи. Задайте вопрос об анализе, и я помогу вам с рекомендациями.
+                </div>
+            `;
+            chatMessages.appendChild(welcomeMsg);
+
+            // Add GigaChat analysis to chat if available
+            if (analysisData.gigachat_analysis) {
+                const gcMsg = document.createElement('div');
+                gcMsg.className = 'chat-message assistant';
+                let gcContent = '<strong style="color: var(--accent); display: block; margin-bottom: 0.5rem;">📊 Расширенный анализ GigaChat:</strong>';
+                
+                const gc = analysisData.gigachat_analysis;
+                if (gc.overall_assessment) {
+                    gcContent += `<div><strong>Общая оценка:</strong> ${escapeHtml(String(gc.overall_assessment))}</div>`;
+                }
+                if (gc.strengths) {
+                    const strengthList = Array.isArray(gc.strengths) ? gc.strengths : Object.values(gc.strengths);
+                    if (strengthList.length > 0) {
+                        gcContent += '<div style="margin-top: 0.5rem;"><strong>✓ Сильные стороны:</strong><ul style="margin: 0.25rem 0 0 1rem;">' +
+                            strengthList.map(s => `<li>${escapeHtml(String(s))}</li>`).join('') +
+                            '</ul></div>';
+                    }
+                }
+                if (gc.areas_for_improvement) {
+                    const improvementList = Array.isArray(gc.areas_for_improvement) ? gc.areas_for_improvement : Object.values(gc.areas_for_improvement);
+                    if (improvementList.length > 0) {
+                        gcContent += '<div style="margin-top: 0.5rem;"><strong>⚡ Области улучшения:</strong><ul style="margin: 0.25rem 0 0 1rem;">' +
+                            improvementList.map(i => `<li>${escapeHtml(String(i))}</li>`).join('') +
+                            '</ul></div>';
+                    }
+                }
+                
+                gcMsg.innerHTML = `<div class="chat-bubble assistant">${gcContent}</div>`;
+                chatMessages.appendChild(gcMsg);
+            }
+        });
+    </script>
+</body>
+</html>
